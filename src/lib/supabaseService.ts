@@ -22,7 +22,7 @@ export class SupabaseService {
       .from(TABLES.CLIENTS)
       .select('*')
       .eq('user_id', this.userId)
-      .order('displayId', { ascending: true });
+      .order('display_id', { ascending: true });
 
     if (error) {
       console.error('Error getting clients:', error);
