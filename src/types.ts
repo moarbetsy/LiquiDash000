@@ -75,7 +75,7 @@ export interface Metric {
     title: string;
     value: string;
     subtitle: string;
-    icon: React.ReactNode;
+    icon: any;
     color: string;
 }
 
@@ -93,7 +93,7 @@ export interface LogEntry {
   timestamp: string;
   user: string;
   action: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 }
 
 export interface DashboardStat {

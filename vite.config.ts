@@ -4,13 +4,20 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      base: '/LiquiDash000/',
+      base: '/',
       css: {
         postcss: './postcss.config.js'
       },
       build: {
         sourcemap: true,
         rollupOptions: {
+          onwarn(warning, defaultHandler) {
+            // Ignore all warnings from framer-motion
+            if (/node_modules\/framer-motion/.test(warning.id || '')) {
+              return
+            }
+            defaultHandler(warning)
+          },
           output: {
             manualChunks: {
               vendor: ['react', 'react-dom'],

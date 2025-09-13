@@ -1,13 +1,11 @@
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
   query,
-  where,
   orderBy,
   onSnapshot,
   writeBatch,
@@ -27,16 +25,30 @@ const COLLECTIONS = {
   USER_DATA: 'userData'
 };
 
-// Encrypt sensitive data (simple encryption for demo - in production use proper encryption)
-const encrypt = (text: string): string => {
-  // In production, use a proper encryption library like crypto-js
-  return btoa(text); // Base64 encoding for demo
-};
+  // Encrypt sensitive data (simple encryption for demo - in production use proper encryption)
+  const encrypt = (text: string): string => {
+    // In production, use a proper encryption library like crypto-js
+    return btoa(text); // Base64 encoding for demo
+  };
 
-const decrypt = (text: string): string => {
-  // In production, use a proper decryption library
-  return atob(text); // Base64 decoding for demo
-};
+  const decrypt = (text: string): string => {
+    // In production, use a proper decryption library
+    return atob(text); // Base64 decoding for demo
+  };
+
+  // Type guard for Firestore data
+  const isValidDocumentData = (data: unknown): data is Record<string, unknown> => {
+    return typeof data === 'object' && data !== null && !Array.isArray(data);
+  };
+
+  // Type guard for Client data from Firestore
+  const isValidClientData = (data: unknown): data is Omit<Client, 'id'> & Record<string, unknown> => {
+    return isValidDocumentData(data) &&
+           typeof (data as any).displayId === 'number' &&
+           typeof (data as any).name === 'string' &&
+           typeof (data as any).orders === 'number' &&
+           typeof (data as any).totalSpent === 'number';
+  };
 
 // Firebase Service Class
 export class FirebaseService {
@@ -73,17 +85,22 @@ export class FirebaseService {
       console.log('FirebaseService: Retrieved', snapshot.docs.length, 'clients');
       return snapshot.docs.map(doc => {
         const data = doc.data();
+        if (!isValidDocumentData(data)) {
+          console.warn('Invalid client data:', data);
+          return null;
+        }
+        const typedData = data as Record<string, any>;
         return {
-          ...data,
+          ...typedData,
           id: doc.id,
-          name: data.name ? decrypt(data.name) : '',
-          email: data.email ? decrypt(data.email) : undefined,
-          phone: data.phone ? decrypt(data.phone) : undefined,
-          address: data.address ? decrypt(data.address) : undefined,
-          notes: data.notes ? decrypt(data.notes) : undefined,
-          etransfer: data.etransfer ? decrypt(data.etransfer) : undefined,
+          name: typeof typedData.name === 'string' ? decrypt(typedData.name) : '',
+          email: typeof typedData.email === 'string' ? decrypt(typedData.email) : undefined,
+          phone: typeof typedData.phone === 'string' ? decrypt(typedData.phone) : undefined,
+          address: typeof typedData.address === 'string' ? decrypt(typedData.address) : undefined,
+          notes: typeof typedData.notes === 'string' ? decrypt(typedData.notes) : undefined,
+          etransfer: typeof typedData.etransfer === 'string' ? decrypt(typedData.etransfer) : undefined,
         } as Client;
-      });
+      }).filter((client): client is Client => client !== null);
     } catch (error) {
       console.error('Error getting clients:', error);
       console.error('Error details:', error);
@@ -116,7 +133,7 @@ export class FirebaseService {
 
   async updateClient(clientId: string, updates: Partial<Client>): Promise<void> {
     try {
-      const encryptedUpdates: any = {
+      const encryptedUpdates: Record<string, any> = {
         updatedAt: Timestamp.now()
       };
 
@@ -364,17 +381,22 @@ export class FirebaseService {
       (snapshot) => {
         const clients = snapshot.docs.map(doc => {
           const data = doc.data();
+          if (!isValidDocumentData(data)) {
+            console.warn('Invalid client data in listener:', data);
+            return null;
+          }
+          const typedData = data as Record<string, any>;
           return {
-            ...data,
+            ...typedData,
             id: doc.id,
-            name: data.name ? decrypt(data.name) : '',
-            email: data.email ? decrypt(data.email) : undefined,
-            phone: data.phone ? decrypt(data.phone) : undefined,
-            address: data.address ? decrypt(data.address) : undefined,
-            notes: data.notes ? decrypt(data.notes) : undefined,
-            etransfer: data.etransfer ? decrypt(data.etransfer) : undefined,
+            name: typeof typedData.name === 'string' ? decrypt(typedData.name) : '',
+            email: typeof typedData.email === 'string' ? decrypt(typedData.email) : undefined,
+            phone: typeof typedData.phone === 'string' ? decrypt(typedData.phone) : undefined,
+            address: typeof typedData.address === 'string' ? decrypt(typedData.address) : undefined,
+            notes: typeof typedData.notes === 'string' ? decrypt(typedData.notes) : undefined,
+            etransfer: typeof typedData.etransfer === 'string' ? decrypt(typedData.etransfer) : undefined,
           } as Client;
-        });
+        }).filter((client): client is Client => client !== null);
         callback(clients);
       },
       (error) => console.error('Error listening to clients:', error)
@@ -446,13 +468,13 @@ export class FirebaseService {
     logs: LogEntry[];
   }): Promise<void> {
     try {
-      const batches: any[] = [];
+      const batches: ReturnType<typeof writeBatch>[] = [];
       let currentBatch = writeBatch(db);
       let operationCount = 0;
       const BATCH_LIMIT = 400; // Leave some buffer below Firestore's 500 limit
 
       // Helper function to add operation to batch, creating new batch if needed
-      const addToBatch = (collectionName: string, data: any) => {
+      const addToBatch = (collectionName: string, data: unknown) => {
         if (operationCount >= BATCH_LIMIT) {
           batches.push(currentBatch);
           currentBatch = writeBatch(db);

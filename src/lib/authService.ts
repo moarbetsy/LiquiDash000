@@ -4,7 +4,8 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  updateProfile
+  updateProfile,
+  type AuthError
 } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -18,9 +19,10 @@ export class AuthService {
         displayName: displayName
       });
       return userCredential.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error signing up:', error);
-      throw new Error(this.getErrorMessage(error.code));
+      const errorCode = (error as AuthError).code;
+      throw new Error(this.getErrorMessage(errorCode));
     }
   }
 
@@ -29,9 +31,10 @@ export class AuthService {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error signing in:', error);
-      throw new Error(this.getErrorMessage(error.code));
+      const errorCode = (error as AuthError).code;
+      throw new Error(this.getErrorMessage(errorCode));
     }
   }
 
@@ -39,7 +42,7 @@ export class AuthService {
   static async signOut(): Promise<void> {
     try {
       await signOut(auth);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error signing out:', error);
       throw new Error('Failed to sign out');
     }

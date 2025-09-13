@@ -7,16 +7,16 @@ export function calculateCost(product: Product, quantity: number): number {
   return product.costPerUnit * quantity;
 }
 
-export function exportToCsv(filename: string, rows: object[]): boolean {
+export function exportToCsv(filename: string, rows: Record<string, unknown>[]): boolean {
   if (rows.length === 0) {
     return false;
   }
 
-  const replacer = (_key: any, value: any) => value === null || value === undefined ? '' : value;
+  const replacer = (_key: string, value: unknown) => value === null || value === undefined ? '' : value;
   const header = Object.keys(rows[0]);
   const csv = [
     header.join(','),
-    ...rows.map(row => header.map(fieldName => JSON.stringify((row as any)[fieldName], replacer)).join(','))
+    ...rows.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','))
   ].join('\r\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

@@ -2,21 +2,19 @@
 
 
 
-import React, { useEffect, useState, useMemo, useRef, type ReactNode, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 // FIX: The `Mask` icon does not exist in `lucide-react`. Replaced with `EyeOff` for the private mode toggle.
 import {
-  ShoppingCart, Users, Box, Plus, Home, Search,
-  Package, ReceiptText, CheckCircle, History, LogOut, Settings, DollarSign, Trash2, TrendingUp, Calendar, Pencil, AreaChart, Calculator, AlertTriangle, Save, X, Download, ArrowUpDown, ArrowUp, ArrowDown, Upload, EyeOff
+  ShoppingCart, Users, Box, Plus, Home, Search, ReceiptText, CheckCircle, History, LogOut, Settings, Trash2, Pencil, AreaChart, Calculator, AlertTriangle, Download, ArrowUpDown, ArrowUp, ArrowDown, Upload, EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { Page, Order, Client, Product, OrderItem, Expense, LogEntry, Metric, DashboardStat } from './types';
-import { initialClients, initialProducts, initialOrders, initialExpenses, initialLogs } from './lib/data';
-import { calculateCost, exportToCsv } from './lib/utils';
-import { CreateOrderModal, CreateClientModal, CreateProductModal, AddStockModal, EditClientModal, EditOrderModal, EditProductModal, ClientOrdersModal, EditExpenseModal, LogDetailsModal, SessionTimeoutModal, ConfirmationModal, CreateExpenseModal, CalculatorModal, AlertModal } from './components/modals';
-import { NavItem, MobileNavItem, GlassCard, ActionCard } from './components/common';
+import type { Page, Order, Client, Product, Expense, LogEntry, DashboardStat } from './types';
+import { exportToCsv } from './lib/utils';
+import { CreateOrderModal, CreateClientModal, CreateProductModal, AddStockModal, EditClientModal, EditOrderModal, EditProductModal, ClientOrdersModal, EditExpenseModal, LogDetailsModal, ConfirmationModal, CreateExpenseModal, CalculatorModal, AlertModal } from './components/modals';
+import { MobileNavItem, GlassCard, ActionCard } from './components/common';
 import LoginPage from './components/LoginPage';
 
 // Firebase imports
@@ -165,7 +163,7 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
     const formatPaymentMethods = (order: Order) => {
         const { paymentMethods } = order;
         if (!paymentMethods) {
-            // @ts-ignore - Fallback for legacy data
+            // @ts-expect-error -- Fallback for legacy data
             return order.paymentMethod || 'N/A';
         }
 
@@ -177,7 +175,7 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
     };
 
     const sortedAndFilteredOrders = useMemo(() => {
-        let sortableItems = orders.filter(order => {
+        const sortableItems = orders.filter(order => {
             const searchMatch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (clients.find(c => c.id === order.clientId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -202,8 +200,8 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
 
         if (sortConfig.key) {
             sortableItems.sort((a, b) => {
-                let aValue: any;
-                let bValue: any;
+                let aValue: unknown;
+                let bValue: unknown;
                 
                 const getStatus = (order: Order) => ((order.total - (order.amountPaid || 0)) <= 0) ? 'Completed' : order.status;
 
@@ -373,7 +371,7 @@ const ClientsPage: React.FC<{
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'balance', direction: 'desc' });
     
     const sortedAndFilteredClients = useMemo(() => {
-        let sortableItems = clients.filter(client =>
+        const sortableItems = clients.filter(client =>
             client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (client.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             `#${client.displayId}`.includes(searchQuery)
@@ -930,7 +928,7 @@ const ReportsPage: React.FC<{
             });
         });
 
-        let result = Array.from(profitMap.values()).map(p => {
+        const result = Array.from(profitMap.values()).map(p => {
             const netProfit = p.totalSales - p.totalCost;
             const margin = p.totalSales > 0 ? (netProfit / p.totalSales) * 100 : 0;
             return { ...p, netProfit, margin };
@@ -1214,7 +1212,7 @@ const App: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  const addLog = useCallback(async (action: string, details: Record<string, any>) => {
+  const addLog = useCallback(async (action: string, details: Record<string, unknown>) => {
     if (!firebaseService || !user) return;
 
     try {
@@ -1324,214 +1322,318 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCreateOrder = (orderData: Omit<Order, 'id' | 'total' | 'status'>) => {
-    const itemsTotal = orderData.items.reduce((sum, item) => sum + item.price, 0);
-    const total = itemsTotal + (orderData.fees.amount || 0) - (orderData.discount.amount || 0);
-    const status: 'Unpaid' | 'Completed' = orderData.amountPaid >= total ? 'Completed' : 'Unpaid';
-    
-    const newOrder: Order = {
-      ...orderData,
-      id: `ord-${(orders.length + 1).toString().padStart(4, '0')}`,
-      total,
-      status,
-    };
+  const handleCreateOrder = async (orderData: Omit<Order, 'id' | 'total' | 'status'>) => {
+    if (!firebaseService) return;
 
-    setOrders(prev => [newOrder, ...prev]);
+    try {
+      const itemsTotal = orderData.items.reduce((sum, item) => sum + item.price, 0);
+      const total = itemsTotal + (orderData.fees.amount || 0) - (orderData.discount.amount || 0);
+      const status: 'Unpaid' | 'Completed' = orderData.amountPaid >= total ? 'Completed' : 'Unpaid';
 
-    // Update product stock
-    const timestamp = new Date().toISOString();
-    setProducts(prevProducts => prevProducts.map(p => {
-        const itemInOrder = newOrder.items.find(item => item.productId === p.id);
-        if (itemInOrder) {
-            return { ...p, stock: p.stock - itemInOrder.quantity, lastOrdered: timestamp };
-        }
-        return p;
-    }));
-
-    addLog('Order Created', { orderId: newOrder.id, client: newOrder.clientId, total: newOrder.total });
-    setCreateOrderModalOpen(false);
-  };
-  
-  const handleEditOrder = (originalOrder: Order, updatedData: Omit<Order, 'id'>) => {
-    const stockChanges = new Map<string, number>();
-
-    // Calculate stock to return to inventory
-    originalOrder.items.forEach(item => {
-        stockChanges.set(item.productId, (stockChanges.get(item.productId) || 0) + item.quantity);
-    });
-
-    // Calculate new stock to be removed
-    updatedData.items.forEach(item => {
-        stockChanges.set(item.productId, (stockChanges.get(item.productId) || 0) - item.quantity);
-    });
-
-    const timestamp = new Date().toISOString();
-    const updatedProductIds = new Set(updatedData.items.map(item => item.productId));
-
-    setProducts(prevProducts => prevProducts.map(p => {
-        const stockChange = stockChanges.get(p.id);
-        const shouldUpdateTimestamp = updatedProductIds.has(p.id);
-
-        if (stockChange !== undefined || shouldUpdateTimestamp) {
-            const newStock = p.stock + (stockChange || 0);
-            const newLastOrdered = shouldUpdateTimestamp ? timestamp : p.lastOrdered;
-            return { ...p, stock: newStock, lastOrdered: newLastOrdered };
-        }
-        return p;
-    }));
-
-    setOrders(prev => prev.map(o => o.id === originalOrder.id ? { ...updatedData, id: originalOrder.id } : o));
-    addLog('Order Updated', { orderId: originalOrder.id });
-    setEditOrderModalOpen(false);
-  };
-
-  const handleDeleteOrder = () => {
-    if (!selectedOrder) return;
-
-    // Return stock to inventory
-    setProducts(prevProducts => prevProducts.map(p => {
-        const itemInOrder = selectedOrder.items.find(item => item.productId === p.id);
-        if (itemInOrder) {
-            return { ...p, stock: p.stock + itemInOrder.quantity };
-        }
-        return p;
-    }));
-
-    setOrders(prev => prev.filter(o => o.id !== selectedOrder.id));
-    addLog('Order Deleted', { orderId: selectedOrder.id });
-    setEditOrderModalOpen(false);
-    setConfirmationModalOpen(false);
-  };
-
-  const handleMarkAsPaid = (orderId: string) => {
-    setOrders(prev => prev.map(o => {
-        if (o.id === orderId) {
-            addLog('Order Marked as Paid', { orderId });
-            return { ...o, amountPaid: o.total, status: 'Completed' };
-        }
-        return o;
-    }));
-  };
-
-  const handleCreateClient = (clientData: Omit<Client, 'id' | 'orders' | 'totalSpent' | 'displayId'>) => {
-    const nextDisplayId = Math.max(0, ...clients.map(c => c.displayId)) + 1;
-    const newClient: Client = {
-      ...clientData,
-      id: `c-${Date.now()}`,
-      displayId: nextDisplayId,
-      orders: 0,
-      totalSpent: 0
-    };
-    setClients(prev => [...prev, newClient]);
-    addLog('Client Created', { clientId: newClient.id, name: newClient.name });
-    setCreateClientModalOpen(false);
-  };
-
-  const handleEditClient = (updatedClient: Client) => {
-    setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
-    addLog('Client Updated', { clientId: updatedClient.id });
-    setEditClientModalOpen(false);
-  };
-
-  const handleDeleteClient = () => {
-    if (!selectedClient) return;
-    const clientOrders = orders.filter(o => o.clientId === selectedClient.id);
-    if (clientOrders.length > 0) {
-      showAlert("Cannot Delete Client", "Cannot delete client with existing orders. Please reassign or delete their orders first.");
-      return;
-    }
-    setClients(prev => prev.filter(c => c.id !== selectedClient.id));
-    addLog('Client Deleted', { clientId: selectedClient.id });
-    setEditClientModalOpen(false);
-    setConfirmationModalOpen(false);
-  };
-
-  const handleCreateProduct = (productData: Omit<Product, 'id'>) => {
-    const newProduct: Product = { ...productData, id: `p-${Date.now()}` };
-    setProducts(prev => [...prev, newProduct]);
-    addLog('Product Created', { productId: newProduct.id, name: newProduct.name });
-    setCreateProductModalOpen(false);
-  };
-
-  const handleEditProduct = (updatedProduct: Product) => {
-    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    addLog('Product Updated', { productId: updatedProduct.id });
-    setEditProductModalOpen(false);
-  };
-  
-  const handleDeleteProduct = () => {
-    if (!selectedProduct) return;
-    setProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
-    addLog('Product Deleted', { productId: selectedProduct.id });
-    setEditProductModalOpen(false);
-    setConfirmationModalOpen(false);
-  };
-  
-  const handleUpdateStock = (productId: string, amount: number, purchaseCost: number) => {
-    const productBeforeUpdate = products.find(p => p.id === productId);
-    if (!productBeforeUpdate) return;
-
-    setProducts(prev => prev.map(p => {
-        if (p.id === productId) {
-            const newStock = p.stock + amount;
-            
-            let newCostPerUnit = p.costPerUnit;
-            // Only update cost if adding stock with a valid purchase cost and amount.
-            if (amount > 0 && purchaseCost > 0 && newStock > 0) {
-                const oldInventoryValue = p.stock * p.costPerUnit;
-                const newInventoryValue = oldInventoryValue + purchaseCost;
-                const calculatedCost = newInventoryValue / newStock;
-                newCostPerUnit = Math.round(calculatedCost * 100) / 100;
-            }
-
-            return { 
-                ...p, 
-                stock: newStock,
-                costPerUnit: newCostPerUnit
-            };
-        }
-        return p;
-    }));
-
-    if (purchaseCost > 0 && amount > 0) {
-      const newExpense: Omit<Expense, 'id'> = {
-        date: new Date().toISOString().split('T')[0],
-        description: `Stock purchase for ${productBeforeUpdate.name}`,
-        amount: purchaseCost,
-        category: 'Inventory',
+      const orderToAdd = {
+        ...orderData,
+        total,
+        status,
       };
-      handleCreateExpense(newExpense);
+
+      const newOrder = await firebaseService.addOrder(orderToAdd);
+
+      // Update product stock locally (this will be synced via real-time listeners)
+      const timestamp = new Date().toISOString();
+      setProducts(prevProducts => prevProducts.map(p => {
+          const itemInOrder = newOrder.items.find(item => item.productId === p.id);
+          if (itemInOrder) {
+              return { ...p, stock: p.stock - itemInOrder.quantity, lastOrdered: timestamp };
+          }
+          return p;
+      }));
+
+      addLog('Order Created', { orderId: newOrder.id, client: newOrder.clientId, total: newOrder.total });
+      setCreateOrderModalOpen(false);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      showAlert('Error', 'Failed to create order. Please try again.');
     }
-    
-    addLog('Stock Updated', { 
-        productId, 
-        name: productBeforeUpdate.name, 
-        change: amount, 
-        newStock: productBeforeUpdate.stock + amount 
-    });
-
-    setAddStockModalOpen(false);
-  };
-
-  const handleCreateExpense = (expenseData: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = { ...expenseData, id: `exp-${Date.now()}` };
-    setExpenses(prev => [newExpense, ...prev]);
-    addLog('Expense Created', { description: newExpense.description, amount: newExpense.amount });
-    setCreateExpenseModalOpen(false);
-  };
-
-  const handleEditExpense = (updatedExpense: Expense) => {
-     setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
-     addLog('Expense Updated', { expenseId: updatedExpense.id });
-     setEditExpenseModalOpen(false);
   };
   
-  const handleDeleteExpense = () => {
-    if (!selectedExpense) return;
-    setExpenses(prev => prev.filter(e => e.id !== selectedExpense.id));
-    addLog('Expense Deleted', { expenseId: selectedExpense.id });
-    setEditExpenseModalOpen(false);
-    setConfirmationModalOpen(false);
+  const handleEditOrder = async (originalOrder: Order, updatedData: Omit<Order, 'id'>) => {
+    if (!firebaseService) return;
+
+    try {
+      const stockChanges = new Map<string, number>();
+
+      // Calculate stock to return to inventory
+      originalOrder.items.forEach(item => {
+          stockChanges.set(item.productId, (stockChanges.get(item.productId) || 0) + item.quantity);
+      });
+
+      // Calculate new stock to be removed
+      updatedData.items.forEach(item => {
+          stockChanges.set(item.productId, (stockChanges.get(item.productId) || 0) - item.quantity);
+      });
+
+      const timestamp = new Date().toISOString();
+      const updatedProductIds = new Set(updatedData.items.map(item => item.productId));
+
+      setProducts(prevProducts => prevProducts.map(p => {
+          const stockChange = stockChanges.get(p.id);
+          const shouldUpdateTimestamp = updatedProductIds.has(p.id);
+
+          if (stockChange !== undefined || shouldUpdateTimestamp) {
+              const newStock = p.stock + (stockChange || 0);
+              const newLastOrdered = shouldUpdateTimestamp ? timestamp : p.lastOrdered;
+              return { ...p, stock: newStock, lastOrdered: newLastOrdered };
+          }
+          return p;
+      }));
+
+      await firebaseService.updateOrder(originalOrder.id, updatedData);
+      // Real-time listener will update the local state automatically
+      addLog('Order Updated', { orderId: originalOrder.id });
+      setEditOrderModalOpen(false);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      showAlert('Error', 'Failed to update order. Please try again.');
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!selectedOrder || !firebaseService) return;
+
+    try {
+      // Return stock to inventory locally (this will be synced via real-time listeners)
+      setProducts(prevProducts => prevProducts.map(p => {
+          const itemInOrder = selectedOrder.items.find(item => item.productId === p.id);
+          if (itemInOrder) {
+              return { ...p, stock: p.stock + itemInOrder.quantity };
+          }
+          return p;
+      }));
+
+      await firebaseService.deleteOrder(selectedOrder.id);
+      // Real-time listener will update the local state automatically
+      addLog('Order Deleted', { orderId: selectedOrder.id });
+      setEditOrderModalOpen(false);
+      setConfirmationModalOpen(false);
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      showAlert('Error', 'Failed to delete order. Please try again.');
+    }
+  };
+
+  const handleMarkAsPaid = async (orderId: string) => {
+    if (!firebaseService) return;
+
+    try {
+      const orderToUpdate = orders.find(o => o.id === orderId);
+      if (!orderToUpdate) return;
+
+      await firebaseService.updateOrder(orderId, {
+        ...orderToUpdate,
+        amountPaid: orderToUpdate.total,
+        status: 'Completed'
+      });
+
+      addLog('Order Marked as Paid', { orderId });
+      // Real-time listener will update the local state automatically
+    } catch (error) {
+      console.error('Error marking order as paid:', error);
+      showAlert('Error', 'Failed to mark order as paid. Please try again.');
+    }
+  };
+
+  const handleCreateClient = async (clientData: Omit<Client, 'id' | 'orders' | 'totalSpent' | 'displayId'>) => {
+    if (!firebaseService) return;
+
+    try {
+      const nextDisplayId = Math.max(0, ...clients.map(c => c.displayId)) + 1;
+      const clientToAdd = {
+        ...clientData,
+        displayId: nextDisplayId,
+        orders: 0,
+        totalSpent: 0
+      };
+
+      const newClient = await firebaseService.addClient(clientToAdd);
+      // Real-time listener will update the local state automatically
+      addLog('Client Created', { clientId: newClient.id, name: newClient.name });
+      setCreateClientModalOpen(false);
+    } catch (error) {
+      console.error('Error creating client:', error);
+      showAlert('Error', 'Failed to create client. Please try again.');
+    }
+  };
+
+  const handleEditClient = async (updatedClient: Client) => {
+    if (!firebaseService) return;
+
+    try {
+      await firebaseService.updateClient(updatedClient.id, updatedClient);
+      // Real-time listener will update the local state automatically
+      addLog('Client Updated', { clientId: updatedClient.id });
+      setEditClientModalOpen(false);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      showAlert('Error', 'Failed to update client. Please try again.');
+    }
+  };
+
+  const handleDeleteClient = async () => {
+    if (!selectedClient || !firebaseService) return;
+
+    try {
+      const clientOrders = orders.filter(o => o.clientId === selectedClient.id);
+      if (clientOrders.length > 0) {
+        showAlert("Cannot Delete Client", "Cannot delete client with existing orders. Please reassign or delete their orders first.");
+        return;
+      }
+
+      await firebaseService.deleteClient(selectedClient.id);
+      // Real-time listener will update the local state automatically
+      addLog('Client Deleted', { clientId: selectedClient.id });
+      setEditClientModalOpen(false);
+      setConfirmationModalOpen(false);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      showAlert('Error', 'Failed to delete client. Please try again.');
+    }
+  };
+
+  const handleCreateProduct = async (productData: Omit<Product, 'id'>) => {
+    if (!firebaseService) return;
+
+    try {
+      const newProduct = await firebaseService.addProduct(productData);
+      // Real-time listener will update the local state automatically
+      addLog('Product Created', { productId: newProduct.id, name: newProduct.name });
+      setCreateProductModalOpen(false);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      showAlert('Error', 'Failed to create product. Please try again.');
+    }
+  };
+
+  const handleEditProduct = async (updatedProduct: Product) => {
+    if (!firebaseService) return;
+
+    try {
+      await firebaseService.updateProduct(updatedProduct.id, updatedProduct);
+      // Real-time listener will update the local state automatically
+      addLog('Product Updated', { productId: updatedProduct.id });
+      setEditProductModalOpen(false);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      showAlert('Error', 'Failed to update product. Please try again.');
+    }
+  };
+  
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct || !firebaseService) return;
+
+    try {
+      await firebaseService.deleteProduct(selectedProduct.id);
+      // Real-time listener will update the local state automatically
+      addLog('Product Deleted', { productId: selectedProduct.id });
+      setEditProductModalOpen(false);
+      setConfirmationModalOpen(false);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      showAlert('Error', 'Failed to delete product. Please try again.');
+    }
+  };
+  
+  const handleUpdateStock = async (productId: string, amount: number, purchaseCost: number) => {
+    if (!firebaseService) return;
+
+    try {
+      const productBeforeUpdate = products.find(p => p.id === productId);
+      if (!productBeforeUpdate) return;
+
+      const newStock = productBeforeUpdate.stock + amount;
+
+      let newCostPerUnit = productBeforeUpdate.costPerUnit;
+      // Only update cost if adding stock with a valid purchase cost and amount.
+      if (amount > 0 && purchaseCost > 0 && newStock > 0) {
+          const oldInventoryValue = productBeforeUpdate.stock * productBeforeUpdate.costPerUnit;
+          const newInventoryValue = oldInventoryValue + purchaseCost;
+          const calculatedCost = newInventoryValue / newStock;
+          newCostPerUnit = Math.round(calculatedCost * 100) / 100;
+      }
+
+      const updatedProduct = {
+          ...productBeforeUpdate,
+          stock: newStock,
+          costPerUnit: newCostPerUnit
+      };
+
+      await firebaseService.updateProduct(productId, updatedProduct);
+      // Real-time listener will update the local state automatically
+
+      if (purchaseCost > 0 && amount > 0) {
+        const newExpense: Omit<Expense, 'id'> = {
+          date: new Date().toISOString().split('T')[0],
+          description: `Stock purchase for ${productBeforeUpdate.name}`,
+          amount: purchaseCost,
+          category: 'Inventory',
+        };
+        handleCreateExpense(newExpense);
+      }
+
+      addLog('Stock Updated', {
+          productId,
+          name: productBeforeUpdate.name,
+          change: amount,
+          newStock: newStock
+      });
+
+      setAddStockModalOpen(false);
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      showAlert('Error', 'Failed to update stock. Please try again.');
+    }
+  };
+
+  const handleCreateExpense = async (expenseData: Omit<Expense, 'id'>) => {
+    if (!firebaseService) return;
+
+    try {
+      const newExpense = await firebaseService.addExpense(expenseData);
+      // Real-time listener will update the local state automatically
+      addLog('Expense Created', { description: newExpense.description, amount: newExpense.amount });
+      setCreateExpenseModalOpen(false);
+    } catch (error) {
+      console.error('Error creating expense:', error);
+      showAlert('Error', 'Failed to create expense. Please try again.');
+    }
+  };
+
+  const handleEditExpense = async (updatedExpense: Expense) => {
+    if (!firebaseService) return;
+
+    try {
+      await firebaseService.updateExpense(updatedExpense.id, updatedExpense);
+      // Real-time listener will update the local state automatically
+      addLog('Expense Updated', { expenseId: updatedExpense.id });
+      setEditExpenseModalOpen(false);
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      showAlert('Error', 'Failed to update expense. Please try again.');
+    }
+  };
+  
+  const handleDeleteExpense = async () => {
+    if (!selectedExpense || !firebaseService) return;
+
+    try {
+      await firebaseService.deleteExpense(selectedExpense.id);
+      // Real-time listener will update the local state automatically
+      addLog('Expense Deleted', { expenseId: selectedExpense.id });
+      setEditExpenseModalOpen(false);
+      setConfirmationModalOpen(false);
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      showAlert('Error', 'Failed to delete expense. Please try again.');
+    }
   };
   
   const handleDeleteAllData = async () => {
@@ -1654,7 +1756,7 @@ const App: React.FC = () => {
   const openEditProductModal = (product: Product) => { setSelectedProduct(product); setEditProductModalOpen(true); };
   const openEditExpenseModal = (expense: Expense) => { setSelectedExpense(expense); setEditExpenseModalOpen(true); };
   const openAddStockModal = (product: Product) => { setSelectedProduct(product); setAddStockModalOpen(true); };
-  const openClientOrdersModal = (client: Client) => { setSelectedClient(client as any); setClientOrdersModalOpen(true); };
+  const openClientOrdersModal = (client: Client) => { setSelectedClient(client as unknown); setClientOrdersModalOpen(true); };
   const openLogDetailsModal = (log: LogEntry) => { setSelectedLog(log); setLogDetailsModalOpen(true); };
 
   const openDeleteConfirmation = (type: 'order' | 'client' | 'product' | 'expense' | 'logout') => {
@@ -1740,7 +1842,7 @@ const App: React.FC = () => {
       case 'log':
         return <LogPage logs={logs} onLogClick={openLogDetailsModal} />;
       case 'settings':
-         return <SettingsPage setPage={setPage} onExport={handleExport as any} onImport={handleImportData} onLogout={() => openDeleteConfirmation('logout')} onDeleteAllData={openDeleteAllDataConfirmation} isImportingData={isImportingData} />;
+         return <SettingsPage setPage={setPage} onExport={handleExport as unknown} onImport={handleImportData} onLogout={() => openDeleteConfirmation('logout')} onDeleteAllData={openDeleteAllDataConfirmation} isImportingData={isImportingData} />;
       case 'reports':
           return <ReportsPage orders={orders} products={products} expenses={expenses} clients={clients} isPrivateMode={isPrivateMode} />;
       default:

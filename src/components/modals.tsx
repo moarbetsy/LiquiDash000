@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, type ReactNode, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, AlertTriangle, Info, ArrowLeft } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import type { Client, Product, Order, OrderItem, Expense, LogEntry, ProductTier, PaymentMethods, OrderAdjustment } from '../types';
+import { X, Plus, Trash2, AlertTriangle, Info } from 'lucide-react';
+import type { Client, Product, Order, OrderItem, Expense, LogEntry, ProductTier, PaymentMethods } from '../types';
 
 // Helper types
 export type MetricChartData = {
