@@ -8,10 +8,14 @@
     "build": "vite build",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "preview": "vite preview",
-    "test:db": "node --loader tsx/esm src/lib/databaseTest.ts"
+    "test:db": "node --import tsx/esm src/lib/databaseTest.ts",
+    "test:supabase": "node --import tsx/esm src/lib/supabaseTest.ts",
+    "migrate": "node run_migration.js",
+    "create-tables": "node --import tsx/esm src/lib/createTables.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^17.2.2",
     "firebase": "^12.2.1",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.542.0",

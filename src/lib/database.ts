@@ -1,11 +1,23 @@
 import { Pool } from 'pg';
+import { config } from 'dotenv';
+
+// Load environment variables from .env.local
+config({ path: '.env.local' });
+
+// Handle environment variables for both Vite and Node.js environments
+const getEnvVar = (key: string, defaultValue?: string): string => {
+  // Try process.env first (works in both Node.js and Vite), then fall back to import.meta.env for Vite
+  const nodeEnv = process.env[key];
+  const viteEnv = (globalThis as any).import?.meta?.env?.[key];
+  return nodeEnv || viteEnv || defaultValue || '';
+};
 
 const pool = new Pool({
-  host: import.meta.env.DATABASE_HOST || 'db.idycycarpdtexqnrxhyg.supabase.co',
-  port: parseInt(import.meta.env.DATABASE_PORT || '5432'),
-  database: import.meta.env.DATABASE_NAME || 'postgres',
-  user: import.meta.env.DATABASE_USER || 'postgres',
-  password: import.meta.env.DATABASE_PASSWORD,
+  host: getEnvVar('DATABASE_HOST', 'db.idycycarpdtexqnrxhyg.supabase.co'),
+  port: parseInt(getEnvVar('DATABASE_PORT', '5432')),
+  database: getEnvVar('DATABASE_NAME', 'postgres'),
+  user: getEnvVar('DATABASE_USER', 'postgres'),
+  password: getEnvVar('DATABASE_PASSWORD'),
   ssl: {
     rejectUnauthorized: false, // For Supabase, we need to allow self-signed certificates
   },

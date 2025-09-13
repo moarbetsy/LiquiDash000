@@ -1,4 +1,8 @@
+import { config } from 'dotenv';
 import { db } from './database';
+
+// Load environment variables
+config({ path: '.env.local' });
 
 async function testDatabaseConnection() {
   console.log('Testing database connection...');
