@@ -763,7 +763,8 @@ const SettingsPage: React.FC<{
     onImport: (file: File) => void;
     onLogout: () => void;
     onDeleteAllData: () => void;
-}> = ({ setPage, onExport, onImport, onLogout, onDeleteAllData }) => {
+    isImportingData?: boolean;
+}> = ({ setPage, onExport, onImport, onLogout, onDeleteAllData, isImportingData = false }) => {
     const importInputRef = useRef<HTMLInputElement>(null);
 
     const handleImportClick = () => {
@@ -811,10 +812,11 @@ const SettingsPage: React.FC<{
                     onClick={() => onExport('all')}
                 />
                 <ActionCard
-                    icon={<Upload size={24} />}
+                    icon={isImportingData ? <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div> : <Upload size={24} />}
                     title="Import Data"
-                    description="Upload a previously exported JSON file to restore data."
+                    description={isImportingData ? "Importing data..." : "Upload a previously exported JSON file to restore data."}
                     onClick={handleImportClick}
+                    disabled={isImportingData}
                 />
                 <input type="file" ref={importInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
                 <ActionCard
@@ -1139,6 +1141,7 @@ const App: React.FC = () => {
   const [isClientOrdersModalOpen, setClientOrdersModalOpen] = useState(false);
   const [isLogDetailsModalOpen, setLogDetailsModalOpen] = useState(false);
   const [isCalculatorModalOpen, setCalculatorModalOpen] = useState(false);
+  const [isImportingData, setIsImportingData] = useState(false);
 
   const [isSessionTimeoutModalOpen, setSessionTimeoutModalOpen] = useState(false);
   const [isConfirmationModalOpen, setConfirmationModalOpen] = useState(false);
@@ -1593,11 +1596,14 @@ const App: React.FC = () => {
       return;
     }
 
+    setIsImportingData(true);
+
     const reader = new FileReader();
     reader.onload = async (e) => {
         const text = e.target?.result;
         if (typeof text !== 'string') {
             showAlert("Import Error", "File content could not be read as text.");
+            setIsImportingData(false);
             return;
         }
         try {
@@ -1631,10 +1637,13 @@ const App: React.FC = () => {
         } catch (error) {
             console.error("Failed to import data:", error);
             showAlert("Import Failed", `Please ensure you are uploading a valid JSON export file from this application. Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsImportingData(false);
         }
     };
     reader.onerror = () => {
         showAlert("File Read Error", "An error occurred while reading the file.");
+        setIsImportingData(false);
     };
     reader.readAsText(file);
   };
@@ -1731,7 +1740,7 @@ const App: React.FC = () => {
       case 'log':
         return <LogPage logs={logs} onLogClick={openLogDetailsModal} />;
       case 'settings':
-         return <SettingsPage setPage={setPage} onExport={handleExport as any} onImport={handleImportData} onLogout={() => openDeleteConfirmation('logout')} onDeleteAllData={openDeleteAllDataConfirmation} />;
+         return <SettingsPage setPage={setPage} onExport={handleExport as any} onImport={handleImportData} onLogout={() => openDeleteConfirmation('logout')} onDeleteAllData={openDeleteAllDataConfirmation} isImportingData={isImportingData} />;
       case 'reports':
           return <ReportsPage orders={orders} products={products} expenses={expenses} clients={clients} isPrivateMode={isPrivateMode} />;
       default:

@@ -446,11 +446,25 @@ export class FirebaseService {
     logs: LogEntry[];
   }): Promise<void> {
     try {
-      const batch = writeBatch(db);
+      const batches: any[] = [];
+      let currentBatch = writeBatch(db);
+      let operationCount = 0;
+      const BATCH_LIMIT = 400; // Leave some buffer below Firestore's 500 limit
+
+      // Helper function to add operation to batch, creating new batch if needed
+      const addToBatch = (collectionName: string, data: any) => {
+        if (operationCount >= BATCH_LIMIT) {
+          batches.push(currentBatch);
+          currentBatch = writeBatch(db);
+          operationCount = 0;
+        }
+        const docRef = doc(this.getUserCollection(collectionName));
+        currentBatch.set(docRef, data);
+        operationCount++;
+      };
 
       // Migrate clients
       localData.clients.forEach(client => {
-        const docRef = doc(this.getUserCollection(COLLECTIONS.CLIENTS));
         const encryptedClient = {
           ...client,
           name: encrypt(client.name),
@@ -462,49 +476,61 @@ export class FirebaseService {
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
         };
-        batch.set(docRef, encryptedClient);
+        addToBatch(COLLECTIONS.CLIENTS, encryptedClient);
       });
 
       // Migrate products
       localData.products.forEach(product => {
-        const docRef = doc(this.getUserCollection(COLLECTIONS.PRODUCTS));
-        batch.set(docRef, {
+        const productData = {
           ...product,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
-        });
+        };
+        addToBatch(COLLECTIONS.PRODUCTS, productData);
       });
 
       // Migrate orders
       localData.orders.forEach(order => {
-        const docRef = doc(this.getUserCollection(COLLECTIONS.ORDERS));
-        batch.set(docRef, {
+        const orderData = {
           ...order,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
-        });
+        };
+        addToBatch(COLLECTIONS.ORDERS, orderData);
       });
 
       // Migrate expenses
       localData.expenses.forEach(expense => {
-        const docRef = doc(this.getUserCollection(COLLECTIONS.EXPENSES));
-        batch.set(docRef, {
+        const expenseData = {
           ...expense,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
-        });
+        };
+        addToBatch(COLLECTIONS.EXPENSES, expenseData);
       });
 
       // Migrate logs
       localData.logs.forEach(log => {
-        const docRef = doc(this.getUserCollection(COLLECTIONS.LOGS));
-        batch.set(docRef, {
+        const logData = {
           ...log,
           timestamp: Timestamp.fromDate(new Date(log.timestamp))
-        });
+        };
+        addToBatch(COLLECTIONS.LOGS, logData);
       });
 
-      await batch.commit();
+      // Add the final batch if it has operations
+      if (operationCount > 0) {
+        batches.push(currentBatch);
+      }
+
+      // Execute all batches
+      console.log(`Migrating data in ${batches.length} batches`);
+      for (let i = 0; i < batches.length; i++) {
+        console.log(`Committing batch ${i + 1}/${batches.length}`);
+        await batches[i].commit();
+      }
+
+      console.log('Data migration completed successfully');
     } catch (error) {
       console.error('Error migrating data:', error);
       throw error;
