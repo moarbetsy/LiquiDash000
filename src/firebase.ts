@@ -3,12 +3,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAWR2x5wKhT8aPqou094XWZKBr1Mqk-nFo",
-  authDomain: "liquidash000.firebaseapp.com",
-  projectId: "liquidash000",
-  storageBucket: "liquidash000.firebasestorage.app",
-  messagingSenderId: "608155532434",
-  appId: "1:608155532434:web:2e3140a54fb03188853a4b"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Debug: Check if environment variables are loaded
