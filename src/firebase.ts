@@ -3,12 +3,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAWR2x5wKhT8aPqou094XWZKBr1Mqk-nFo",
-  authDomain: "liquidash000.firebaseapp.com",
-  projectId: "liquidash000",
-  storageBucket: "liquidash000.firebasestorage.app",
-  messagingSenderId: "608155532434",
-  appId: "1:608155532434:web:2e3140a54fb03188853a4b"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyAWR2x5wKhT8aPqou094XWZKBr1Mqk-nFo",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "liquidash000.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "liquidash000",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "liquidash000.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "608155532434",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:608155532434:web:2e3140a54fb03188853a4b"
 };
 
 // Debug: Check if environment variables are loaded
@@ -16,7 +16,8 @@ console.log('Firebase Config Check:', {
   apiKey: !!firebaseConfig.apiKey,
   authDomain: !!firebaseConfig.authDomain,
   projectId: !!firebaseConfig.projectId,
-  hasAllKeys: Object.values(firebaseConfig).every(value => !!value)
+  hasAllKeys: Object.values(firebaseConfig).every(value => !!value),
+  usingEnvVars: !!(import.meta.env.VITE_FIREBASE_API_KEY)
 });
 
 // Initialize Firebase
