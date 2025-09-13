@@ -4,7 +4,7 @@ import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
-      base: '/LiquidDash000/',
+      base: '/LiquiDash000/',
       css: {
         postcss: './postcss.config.js'
       },
