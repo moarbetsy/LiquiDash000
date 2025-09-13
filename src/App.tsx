@@ -1587,9 +1587,14 @@ const App: React.FC = () => {
     }
   };
   
-  const handleImportData = (file: File) => {
+  const handleImportData = async (file: File) => {
+    if (!firebaseService) {
+      showAlert("Import Error", "Firebase service not available. Please try again.");
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         const text = e.target?.result;
         if (typeof text !== 'string') {
             showAlert("Import Error", "File content could not be read as text.");
@@ -1597,20 +1602,28 @@ const App: React.FC = () => {
         }
         try {
             const data = JSON.parse(text);
-            
+
             // Basic validation to ensure we're importing the right kind of file
             if (data.clients && Array.isArray(data.clients) &&
                 data.products && Array.isArray(data.products) &&
                 data.orders && Array.isArray(data.orders) &&
                 data.expenses && Array.isArray(data.expenses) &&
                 data.logs && Array.isArray(data.logs)) {
-              setClients(data.clients);
-              setProducts(data.products);
-              setOrders(data.orders);
-              setExpenses(data.expenses);
-              setLogs(data.logs);
+
+              // First, migrate the data to Firebase
+              await firebaseService.migrateLocalData({
+                clients: data.clients,
+                products: data.products,
+                orders: data.orders,
+                expenses: data.expenses,
+                logs: data.logs
+              });
+
+              // The real-time listeners will automatically update the local state
+              // No need to manually set state as Firebase will sync it
+
               addLog('Data Imported', { fileName: file.name, source: 'user_upload' });
-              showAlert("Import Successful", `Successfully imported data from ${file.name}.`);
+              showAlert("Import Successful", `Successfully imported data from ${file.name}. The data has been saved to your account.`);
               setPage('dashboard'); // Navigate to dashboard to see results
             } else {
               throw new Error('Invalid JSON structure. The file does not appear to be a valid export file.');
