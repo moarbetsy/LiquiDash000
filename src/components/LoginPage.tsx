@@ -93,7 +93,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                placeholder="e.g., admin@example.com"
+                placeholder="noregrets.john69@gmail.com"
                 required
               />
             </div>
