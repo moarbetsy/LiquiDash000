@@ -1,27 +1,47 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
+import { AuthService } from '../lib/authService';
 
 interface LoginPageProps {
   onLoginSuccess: (username: string) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim() === 'Admin' && password === 'Admin000') {
-      onLoginSuccess(username.trim());
-    } else {
-      setError('Invalid username or password.');
-      setPassword(''); // Clear password on failed attempt
+    setError('');
+    setIsLoading(true);
+
+    try {
+      if (isSignUp) {
+        await AuthService.signUp(email, password, displayName || email.split('@')[0]);
+        // Firebase will handle the auth state change
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        // Firebase will handle the auth state change
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      // Show more specific error message
+      const errorMessage = error.message || `${isSignUp ? 'Sign up' : 'Login'} failed. Please try again.`;
+      setError(errorMessage);
+      if (!isSignUp) setPassword(''); // Clear password on failed login attempt
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen w-full">
+    <div className="flex items-center justify-center min-h-screen w-full bg-black/50">
       {/* FIX: Correctly type framer-motion component props */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -29,10 +49,14 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         transition={{ duration: 0.3 }}
         className="w-full max-w-sm"
       >
-        <form onSubmit={handleLogin} className="glass p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="glass p-8 space-y-6 bg-black/80 border-white/20">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-primary">Welcome Back</h1>
-            <p className="text-muted text-sm mt-1">Enter your credentials to access the dashboard.</p>
+            <h1 className="text-2xl font-bold text-white">
+              {isSignUp ? 'Create Account' : 'Welcome Back'}
+            </h1>
+            <p className="text-white/80 text-sm mt-1">
+              {isSignUp ? 'Sign up to get started with your dashboard.' : 'Enter your credentials to access the dashboard.'}
+            </p>
           </div>
           {error && (
             <motion.div
@@ -44,24 +68,39 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </motion.div>
           )}
           <div className="space-y-4">
+            {isSignUp && (
+              <div>
+                <label htmlFor="displayName" className="text-sm font-medium text-white block mb-2">
+                  Display Name
+                </label>
+                <input
+                  id="displayName"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                  placeholder="Your name"
+                />
+              </div>
+            )}
             <div>
-              <label htmlFor="username" className="text-sm font-medium text-muted block mb-2">
-                Username
+              <label htmlFor="email" className="text-sm font-medium text-white block mb-2">
+                Email
               </label>
               <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                placeholder="e.g., Admin"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                placeholder="e.g., admin@example.com"
                 required
               />
             </div>
             <div>
               <label
                 htmlFor="password"
-                className="text-sm font-medium text-muted block mb-2"
+                className="text-sm font-medium text-white block mb-2"
               >
                 Password
               </label>
@@ -70,15 +109,34 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
                 placeholder="••••••••"
                 required
+                minLength={6}
               />
             </div>
           </div>
-          <button type="submit" className="w-full gloss-btn py-3">
-            Sign In
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full gloss-btn py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
           </button>
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError('');
+                setPassword('');
+                setDisplayName('');
+              }}
+              className="text-sm text-white/70 hover:text-white transition-colors"
+            >
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
         </form>
       </motion.div>
     </div>

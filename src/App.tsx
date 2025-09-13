@@ -1740,7 +1740,7 @@ const App: React.FC = () => {
 
   // Show login page if not authenticated
   if (!user) {
-    return <LoginPage />;
+    return <LoginPage onLoginSuccess={() => {}} />;
   }
 
   const unpaidOrdersCount = orders.filter(o => o.status === 'Unpaid' && (o.total - (o.amountPaid || 0)) > 0).length;
