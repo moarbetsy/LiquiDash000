@@ -71,11 +71,13 @@ export interface Order {
   reconciled?: boolean;
 }
 
+import { ReactNode } from 'react';
+
 export interface Metric {
     title: string;
     value: string;
     subtitle: string;
-    icon: any;
+    icon: ReactNode;
     color: string;
 }
 

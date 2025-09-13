@@ -20,6 +20,7 @@ import LoginPage from './components/LoginPage';
 // Firebase imports
 import { AuthService } from './lib/authService';
 import { FirebaseService } from './lib/firebaseService';
+import { notificationService } from './lib/notificationService';
 import type { User } from 'firebase/auth';
 
 // FIX: Alias motion.div to a constant to help TypeScript correctly resolve the component's type.
@@ -1161,6 +1162,35 @@ const App: React.FC = () => {
         setUser(firebaseUser);
         const service = new FirebaseService(firebaseUser.uid);
         setFirebaseService(service);
+
+        // Initialize notifications
+        try {
+          await notificationService.registerServiceWorker();
+
+          const permissionGranted = await notificationService.requestPermission();
+          if (permissionGranted) {
+            const token = await notificationService.getFCMToken();
+            if (token) {
+              console.log('FCM Token obtained:', token);
+              // TODO: Send token to backend for storing
+            }
+          }
+
+          // Listen for foreground messages
+          notificationService.onMessageReceived((payload) => {
+            console.log('Foreground message received:', payload);
+            // Show in-app notification for foreground messages
+            notificationService.showNotification(
+              payload.notification?.title || 'Liquid Glass Dashboard',
+              {
+                body: payload.notification?.body || 'You have a new notification',
+                data: payload.data
+              }
+            );
+          });
+        } catch (error) {
+          console.error('Error initializing notifications:', error);
+        }
 
         // Load initial data
         try {

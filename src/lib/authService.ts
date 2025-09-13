@@ -4,8 +4,7 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  updateProfile,
-  type AuthError
+  updateProfile
 } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -21,7 +20,7 @@ export class AuthService {
       return userCredential.user;
     } catch (error: unknown) {
       console.error('Error signing up:', error);
-      const errorCode = (error as AuthError).code;
+      const errorCode = (error as { code?: string }).code || 'auth/unknown-error';
       throw new Error(this.getErrorMessage(errorCode));
     }
   }
@@ -33,7 +32,7 @@ export class AuthService {
       return userCredential.user;
     } catch (error: unknown) {
       console.error('Error signing in:', error);
-      const errorCode = (error as AuthError).code;
+      const errorCode = (error as { code?: string }).code || 'auth/unknown-error';
       throw new Error(this.getErrorMessage(errorCode));
     }
   }

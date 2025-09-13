@@ -17,6 +17,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,22 +37,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Set environment variables
-        run: |
-          # Set Firebase configuration (public values)
-          echo "VITE_FIREBASE_API_KEY=AIzaSyAWR2x5wKhT8aPqou094XWZKBr1Mqk-nFo" >> $GITHUB_ENV
-          echo "VITE_FIREBASE_AUTH_DOMAIN=liquidash000.firebaseapp.com" >> $GITHUB_ENV
-          echo "VITE_FIREBASE_PROJECT_ID=liquidash000" >> $GITHUB_ENV
-          echo "VITE_FIREBASE_STORAGE_BUCKET=liquidash000.firebasestorage.app" >> $GITHUB_ENV
-          echo "VITE_FIREBASE_MESSAGING_SENDER_ID=608155532434" >> $GITHUB_ENV
-          echo "VITE_FIREBASE_APP_ID=1:608155532434:web:2e3140a54fb03188853a4b" >> $GITHUB_ENV
-          # Set API key from secret if available
-          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
-            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
-          else
-            echo "GEMINI_API_KEY=" >> $GITHUB_ENV
-          fi
 
       - name: Build
         run: npm run build
@@ -67,10 +59,13 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Show deployed page URL
+        run: |
+          echo "Deployed page URL: ${{ steps.deployment.outputs.page_url }}"

@@ -12,7 +12,7 @@ export function exportToCsv(filename: string, rows: Record<string, unknown>[]): 
     return false;
   }
 
-  const replacer = (_key: string, value: unknown) => value === null || value === undefined ? '' : value;
+  const replacer = (_key: string, value: unknown): string | unknown => value === null || value === undefined ? '' : value;
   const header = Object.keys(rows[0]);
   const csv = [
     header.join(','),

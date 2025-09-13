@@ -44,10 +44,10 @@ const COLLECTIONS = {
   // Type guard for Client data from Firestore
   const isValidClientData = (data: unknown): data is Omit<Client, 'id'> & Record<string, unknown> => {
     return isValidDocumentData(data) &&
-           typeof (data as any).displayId === 'number' &&
-           typeof (data as any).name === 'string' &&
-           typeof (data as any).orders === 'number' &&
-           typeof (data as any).totalSpent === 'number';
+           typeof (data as Record<string, unknown>).displayId === 'number' &&
+           typeof (data as Record<string, unknown>).name === 'string' &&
+           typeof (data as Record<string, unknown>).orders === 'number' &&
+           typeof (data as Record<string, unknown>).totalSpent === 'number';
   };
 
 // Firebase Service Class
@@ -89,7 +89,7 @@ export class FirebaseService {
           console.warn('Invalid client data:', data);
           return null;
         }
-        const typedData = data as Record<string, any>;
+        const typedData = data as Record<string, unknown>;
         return {
           ...typedData,
           id: doc.id,
@@ -133,22 +133,35 @@ export class FirebaseService {
 
   async updateClient(clientId: string, updates: Partial<Client>): Promise<void> {
     try {
-      const encryptedUpdates: Record<string, any> = {
+      const encryptedUpdates: Record<string, unknown> = {
         updatedAt: Timestamp.now()
       };
 
-      if (updates.name) encryptedUpdates.name = encrypt(updates.name);
-      if (updates.email !== undefined) encryptedUpdates.email = updates.email ? encrypt(updates.email) : null;
-      if (updates.phone !== undefined) encryptedUpdates.phone = updates.phone ? encrypt(updates.phone) : null;
-      if (updates.address !== undefined) encryptedUpdates.address = updates.address ? encrypt(updates.address) : null;
-      if (updates.notes !== undefined) encryptedUpdates.notes = updates.notes ? encrypt(updates.notes) : null;
-      if (updates.etransfer !== undefined) encryptedUpdates.etransfer = updates.etransfer ? encrypt(updates.etransfer) : null;
+      // Handle sensitive fields with encryption
+      if (updates.name !== undefined) {
+        encryptedUpdates.name = encrypt(updates.name);
+      }
+      if (updates.email !== undefined) {
+        encryptedUpdates.email = updates.email ? encrypt(updates.email) : null;
+      }
+      if (updates.phone !== undefined) {
+        encryptedUpdates.phone = updates.phone ? encrypt(updates.phone) : null;
+      }
+      if (updates.address !== undefined) {
+        encryptedUpdates.address = updates.address ? encrypt(updates.address) : null;
+      }
+      if (updates.notes !== undefined) {
+        encryptedUpdates.notes = updates.notes ? encrypt(updates.notes) : null;
+      }
+      if (updates.etransfer !== undefined) {
+        encryptedUpdates.etransfer = updates.etransfer ? encrypt(updates.etransfer) : null;
+      }
 
       // Copy non-sensitive fields
-      const nonSensitiveFields = ['displayId', 'orders', 'totalSpent', 'inactive'];
+      const nonSensitiveFields: (keyof Client)[] = ['displayId', 'orders', 'totalSpent', 'inactive'];
       nonSensitiveFields.forEach(field => {
-        if (updates[field as keyof Client] !== undefined) {
-          encryptedUpdates[field] = updates[field as keyof Client];
+        if (updates[field] !== undefined) {
+          encryptedUpdates[field] = updates[field];
         }
       });
 
@@ -385,7 +398,7 @@ export class FirebaseService {
             console.warn('Invalid client data in listener:', data);
             return null;
           }
-          const typedData = data as Record<string, any>;
+          const typedData = data as Record<string, unknown>;
           return {
             ...typedData,
             id: doc.id,

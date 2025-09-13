@@ -8,7 +8,7 @@ import { getAuth } from 'firebase/auth';
 export async function testFirestoreConnection(): Promise<{
   success: boolean;
   message: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }> {
   try {
     const auth = getAuth();

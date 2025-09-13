@@ -32,7 +32,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     } catch (error: unknown) {
       console.error('Auth error:', error);
       // Show more specific error message
-      const errorMessage = (error as Error)?.message || `${isSignUp ? 'Sign up' : 'Login'} failed. Please try again.`;
+      const errorMessage = error instanceof Error ? error.message : `${isSignUp ? 'Sign up' : 'Login'} failed. Please try again.`;
       setError(errorMessage);
       if (!isSignUp) setPassword(''); // Clear password on failed login attempt
     } finally {
