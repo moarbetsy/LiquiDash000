@@ -14,6 +14,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getAuth } from 'firebase/auth';
 import type { Client, Product, Order, Expense, LogEntry } from '../types';
 
 // Collection names
@@ -50,11 +51,26 @@ export class FirebaseService {
     return collection(db, 'users', this.userId, collectionName);
   }
 
+  // Check if user is authenticated
+  private isAuthenticated(): boolean {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    console.log('FirebaseService: Current user:', user ? user.uid : 'null');
+    return user !== null;
+  }
+
   // CLIENTS
   async getClients(): Promise<Client[]> {
     try {
+      if (!this.isAuthenticated()) {
+        console.error('FirebaseService: User not authenticated');
+        return [];
+      }
+
+      console.log('FirebaseService: Getting clients for userId:', this.userId);
       const q = query(this.getUserCollection(COLLECTIONS.CLIENTS), orderBy('displayId', 'asc'));
       const snapshot = await getDocs(q);
+      console.log('FirebaseService: Retrieved', snapshot.docs.length, 'clients');
       return snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -70,6 +86,7 @@ export class FirebaseService {
       });
     } catch (error) {
       console.error('Error getting clients:', error);
+      console.error('Error details:', error);
       return [];
     }
   }
@@ -137,6 +154,11 @@ export class FirebaseService {
   // PRODUCTS
   async getProducts(): Promise<Product[]> {
     try {
+      if (!this.isAuthenticated()) {
+        console.error('FirebaseService: User not authenticated');
+        return [];
+      }
+
       const q = query(this.getUserCollection(COLLECTIONS.PRODUCTS), orderBy('name', 'asc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({
@@ -189,6 +211,11 @@ export class FirebaseService {
   // ORDERS
   async getOrders(): Promise<Order[]> {
     try {
+      if (!this.isAuthenticated()) {
+        console.error('FirebaseService: User not authenticated');
+        return [];
+      }
+
       const q = query(this.getUserCollection(COLLECTIONS.ORDERS), orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({
@@ -241,6 +268,11 @@ export class FirebaseService {
   // EXPENSES
   async getExpenses(): Promise<Expense[]> {
     try {
+      if (!this.isAuthenticated()) {
+        console.error('FirebaseService: User not authenticated');
+        return [];
+      }
+
       const q = query(this.getUserCollection(COLLECTIONS.EXPENSES), orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({
@@ -293,6 +325,11 @@ export class FirebaseService {
   // LOGS
   async getLogs(): Promise<LogEntry[]> {
     try {
+      if (!this.isAuthenticated()) {
+        console.error('FirebaseService: User not authenticated');
+        return [];
+      }
+
       const q = query(this.getUserCollection(COLLECTIONS.LOGS), orderBy('timestamp', 'desc'));
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({
