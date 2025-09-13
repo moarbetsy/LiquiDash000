@@ -1109,7 +1109,7 @@ const ReportsPage: React.FC<{
     )
 }
 
-export const App: React.FC = () => {
+const App: React.FC = () => {
   // Firebase state
   const [user, setUser] = useState<User | null>(null);
   const [firebaseService, setFirebaseService] = useState<FirebaseService | null>(null);
@@ -1821,3 +1821,5 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
+export default App;
