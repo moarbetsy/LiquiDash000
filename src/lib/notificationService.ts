@@ -1,11 +1,7 @@
-import { getToken, onMessage, Messaging } from 'firebase/messaging';
-import { messaging } from '../firebase';
-
 export class NotificationService {
-  private messaging: Messaging;
-
   constructor() {
-    this.messaging = messaging;
+    // Supabase doesn't have built-in push notifications like Firebase
+    // This is a stub implementation for future notification features
   }
 
   // Request permission for notifications
@@ -19,25 +15,16 @@ export class NotificationService {
     }
   }
 
-  // Get FCM token
+  // Get FCM token - not available in Supabase
   async getFCMToken(): Promise<string | null> {
-    try {
-      const token = await getToken(this.messaging, {
-        vapidKey: 'BLuhTx0c_7WDa-ars3xt73TzcCyyrKKpYLaFerbYEnNy7i4t1ka63Upb6t22LTb0nGbXr3SoWx9333skhB55IRg' // From your FCM config
-      });
-      return token;
-    } catch (error) {
-      console.error('Error getting FCM token:', error);
-      return null;
-    }
+    console.log('FCM tokens not available with Supabase. Consider using a third-party service.');
+    return null;
   }
 
-  // Listen for foreground messages
+  // Listen for foreground messages - not available in Supabase
   onMessageReceived(callback: (payload: any) => void) {
-    return onMessage(this.messaging, (payload) => {
-      console.log('Message received:', payload);
-      callback(payload);
-    });
+    console.log('Real-time messaging not implemented with Supabase. Consider using Supabase Realtime.');
+    return () => {}; // Return empty unsubscribe function
   }
 
   // Show notification
@@ -60,9 +47,10 @@ export class NotificationService {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        console.log('Service Worker registered:', registration);
-        return registration;
+        // Note: This would need to be updated to use a different service worker
+        // since we removed the Firebase messaging service worker
+        console.log('Service worker registration not implemented for Supabase');
+        return null;
       } catch (error) {
         console.error('Service Worker registration failed:', error);
         return null;

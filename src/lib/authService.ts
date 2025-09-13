@@ -1,46 +1,47 @@
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  User,
-  updateProfile
-} from 'firebase/auth';
-import { auth } from '../firebase';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '../supabase';
 
 export class AuthService {
   // Sign up with email and password
-  static async signUp(email: string, password: string, displayName: string): Promise<User> {
+  static async signUp(email: string, password: string, displayName: string): Promise<User | null> {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Update the user profile with display name
-      await updateProfile(userCredential.user, {
-        displayName: displayName
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+          }
+        }
       });
-      return userCredential.user;
+      if (error) throw error;
+      return data.user;
     } catch (error: unknown) {
       console.error('Error signing up:', error);
-      const errorCode = (error as { code?: string }).code || 'auth/unknown-error';
-      throw new Error(this.getErrorMessage(errorCode));
+      throw new Error(this.getErrorMessage(error as Error));
     }
   }
 
   // Sign in with email and password
-  static async signIn(email: string, password: string): Promise<User> {
+  static async signIn(email: string, password: string): Promise<User | null> {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return userCredential.user;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      return data.user;
     } catch (error: unknown) {
       console.error('Error signing in:', error);
-      const errorCode = (error as { code?: string }).code || 'auth/unknown-error';
-      throw new Error(this.getErrorMessage(errorCode));
+      throw new Error(this.getErrorMessage(error as Error));
     }
   }
 
   // Sign out
   static async signOut(): Promise<void> {
     try {
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error: unknown) {
       console.error('Error signing out:', error);
       throw new Error('Failed to sign out');
@@ -48,34 +49,25 @@ export class AuthService {
   }
 
   // Get current user
-  static getCurrentUser(): User | null {
-    return auth.currentUser;
+  static async getCurrentUser(): Promise<User | null> {
+    const { data } = await supabase.auth.getUser();
+    return data.user;
   }
 
   // Listen to auth state changes
   static onAuthStateChange(callback: (user: User | null) => void): () => void {
-    return onAuthStateChanged(auth, callback);
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      callback(session?.user ?? null);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }
 
   // Helper method to get user-friendly error messages
-  private static getErrorMessage(errorCode: string): string {
-    switch (errorCode) {
-      case 'auth/email-already-in-use':
-        return 'This email is already registered. Please sign in instead.';
-      case 'auth/weak-password':
-        return 'Password should be at least 6 characters long.';
-      case 'auth/invalid-email':
-        return 'Please enter a valid email address.';
-      case 'auth/user-not-found':
-        return 'No account found with this email. Please sign up first.';
-      case 'auth/wrong-password':
-        return 'Incorrect password. Please try again.';
-      case 'auth/too-many-requests':
-        return 'Too many failed attempts. Please try again later.';
-      case 'auth/network-request-failed':
-        return 'Network error. Please check your connection.';
-      default:
-        return 'An error occurred. Please try again.';
-    }
+  private static getErrorMessage(error: Error): string {
+    // You can customize these error messages based on Supabase's error codes
+    return error.message || 'An error occurred. Please try again.';
   }
 }

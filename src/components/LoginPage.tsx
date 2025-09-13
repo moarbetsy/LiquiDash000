@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
 import { AuthService } from '../lib/authService';
 
 interface LoginPageProps {
@@ -24,10 +22,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       if (isSignUp) {
         await AuthService.signUp(email, password, displayName || email.split('@')[0]);
-        // Firebase will handle the auth state change
+        // Supabase will handle the auth state change
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        // Firebase will handle the auth state change
+        await AuthService.signIn(email, password);
+        // Supabase will handle the auth state change
       }
     } catch (error: unknown) {
       console.error('Auth error:', error);
@@ -137,6 +135,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
           </div>
+
         </form>
       </motion.div>
     </div>

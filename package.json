@@ -7,12 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:db": "node --loader tsx/esm src/lib/databaseTest.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
     "firebase": "^12.2.1",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.542.0",
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "recharts": "^3.1.2"
@@ -21,6 +24,7 @@
     "@eslint/js": "^9.35.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22.14.0",
+    "@types/pg": "^8.15.5",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.35.0",
     "eslint-plugin-react": "^7.37.5",
@@ -30,6 +34,7 @@
     "globals": "^16.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
+    "tsx": "^4.20.5",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.43.0",
     "vite": "^6.2.0"

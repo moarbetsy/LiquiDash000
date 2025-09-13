@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 // FIX: The `Mask` icon does not exist in `lucide-react`. Replaced with `EyeOff` for the private mode toggle.
 import {
@@ -17,11 +13,11 @@ import { CreateOrderModal, CreateClientModal, CreateProductModal, AddStockModal,
 import { MobileNavItem, GlassCard, ActionCard } from './components/common';
 import LoginPage from './components/LoginPage';
 
-// Firebase imports
+// Supabase imports
 import { AuthService } from './lib/authService';
-import { FirebaseService } from './lib/firebaseService';
+import { SupabaseService } from './lib/supabaseService';
 import { notificationService } from './lib/notificationService';
-import type { User } from 'firebase/auth';
+import type { User } from '@supabase/supabase-js';
 
 // FIX: Alias motion.div to a constant to help TypeScript correctly resolve the component's type.
 const MotionDiv = motion.div;
@@ -34,8 +30,8 @@ const SortableHeader: React.FC<{
   className?: string;
 }> = ({ title, columnKey, sortConfig, onSort, className }) => {
   const isSorted = sortConfig.key === columnKey;
-  const directionIcon = isSorted 
-    ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} className="ml-1 flex-shrink-0" /> : <ArrowDown size={14} className="ml-1 flex-shrink-0" />) 
+  const directionIcon = isSorted
+    ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} className="ml-1 flex-shrink-0" /> : <ArrowDown size={14} className="ml-1 flex-shrink-0" />)
     : <ArrowUpDown size={14} className="ml-1 text-transparent group-hover:text-muted flex-shrink-0" />;
 
   return (
@@ -60,7 +56,7 @@ const DashboardPage: React.FC<{
   currentUser: string;
   dashboardStats: DashboardStat[];
 }> = ({ onNewOrder, searchQuery, setSearchQuery, onViewClientOrders, onEditOrder, onEditProduct, clients, orders, products, isPrivateMode, currentUser, dashboardStats }) => {
-    
+
     const [currentStatIndex, setCurrentStatIndex] = useState(0);
 
     useEffect(() => {
@@ -74,12 +70,12 @@ const DashboardPage: React.FC<{
     }, [currentStatIndex, dashboardStats]);
 
     const currentStat = dashboardStats[currentStatIndex] || { label: 'Loading...', value: '' };
-    
+
     const searchResults = useMemo(() => {
         if (!searchQuery) return null;
 
         const lowerQuery = searchQuery.toLowerCase();
-        
+
         const foundClients = clients.filter(c => c.name.toLowerCase().includes(lowerQuery) || `#${c.displayId}`.includes(lowerQuery));
         const foundOrders = orders.filter(o => o.id.toLowerCase().includes(lowerQuery) || (clients.find(c => c.id === o.clientId)?.name || '').toLowerCase().includes(lowerQuery));
         const foundProducts = products.filter(p => p.name.toLowerCase().includes(lowerQuery));
@@ -110,7 +106,7 @@ const DashboardPage: React.FC<{
                 </AnimatePresence>
             </div>
         </div>
-        
+
         {searchResults && (
             <AnimatePresence>
             {/* FIX: Correctly type framer-motion component props */}
@@ -195,7 +191,7 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
             if (statusFilter === 'Unpaid') {
                 return order.status === 'Unpaid' && balance > 0;
             }
-            
+
             return order.status === statusFilter;
         });
 
@@ -203,7 +199,7 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
             sortableItems.sort((a, b) => {
                 let aValue: unknown;
                 let bValue: unknown;
-                
+
                 const getStatus = (order: Order) => ((order.total - (order.amountPaid || 0)) <= 0) ? 'Completed' : order.status;
 
                 switch (sortConfig.key) {
@@ -227,7 +223,7 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
                         aValue = a[sortConfig.key as keyof Order];
                         bValue = b[sortConfig.key as keyof Order];
                 }
-                
+
                 if (aValue < bValue) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }
@@ -237,11 +233,11 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
                 return 0;
             });
         }
-        
+
         return sortableItems;
 
     }, [orders, clients, searchQuery, statusFilter, dateFrom, dateTo, sortConfig]);
-    
+
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -266,8 +262,8 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
             <button
                 onClick={() => setStatusFilter(value)}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                    isActive 
-                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20' 
+                    isActive
+                    ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
                     : 'bg-white/5 text-muted hover:bg-white/10 hover:text-primary'
                 }`}
             >
@@ -360,17 +356,17 @@ const OrdersPage: React.FC<{ orders: Order[]; clients: Client[]; products: Produ
     );
 };
 
-const ClientsPage: React.FC<{ 
+const ClientsPage: React.FC<{
     clients: (Client & { orders: number; totalSpent: number; balance: number; totalDiscounts: number; })[];
-    searchQuery: string; 
+    searchQuery: string;
     onClientClick: (client: Client) => void;
     onViewOrders: (client: Client) => void;
     onNewClient: () => void;
     isPrivateMode: boolean;
 }> = ({ clients, searchQuery, onClientClick, onViewOrders, onNewClient, isPrivateMode }) => {
-    
+
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'balance', direction: 'desc' });
-    
+
     const sortedAndFilteredClients = useMemo(() => {
         const sortableItems = clients.filter(client =>
             client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -381,7 +377,7 @@ const ClientsPage: React.FC<{
         sortableItems.sort((a, b) => {
             const aValue = a[sortConfig.key as keyof typeof a];
             const bValue = b[sortConfig.key as keyof typeof b];
-            
+
             let comparison = 0;
             if (typeof aValue === 'string' && typeof bValue === 'string') {
                 comparison = aValue.localeCompare(bValue);
@@ -429,7 +425,7 @@ const ClientsPage: React.FC<{
             return acc;
         }, { orders: 0, spent: 0, discounts: 0, balance: 0 });
     }, [sortedAndFilteredClients]);
-    
+
     return (
         <GlassCard>
             <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
@@ -466,8 +462,8 @@ const ClientsPage: React.FC<{
                                     </div>
                                 </td>
                                 <td className="p-3 text-center">
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); onClientClick(c); }} 
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); onClientClick(c); }}
                                       className="p-2 rounded-full hover:bg-white/10 transition-colors text-muted"
                                       aria-label="Edit client"
                                     >
@@ -492,11 +488,11 @@ const ClientsPage: React.FC<{
     );
 };
 
-const ProductsPage: React.FC<{ 
-    products: Product[]; 
-    searchQuery: string; 
-    onProductClick: (product: Product) => void; 
-    inventoryValue: number; 
+const ProductsPage: React.FC<{
+    products: Product[];
+    searchQuery: string;
+    onProductClick: (product: Product) => void;
+    inventoryValue: number;
     onAddProduct: () => void;
     onUpdateStock: (product: Product) => void;
     isPrivateMode: boolean;
@@ -523,7 +519,7 @@ const ProductsPage: React.FC<{
                 // Both products have stock, now apply sorting logic
                 const aHasDate = !!a.lastOrdered;
                 const bHasDate = !!b.lastOrdered;
-                
+
                 // Prioritize products that have been sold
                 if (aHasDate && !bHasDate) return -1;
                 if (!aHasDate && bHasDate) return 1;
@@ -538,11 +534,11 @@ const ProductsPage: React.FC<{
                 // If lastOrdered is the same or non-existent for both, sort by inventory value
                 const aValue = a.stock * a.costPerUnit;
                 const bValue = b.stock * b.costPerUnit;
-                
+
                 if (aValue !== bValue) {
                     return bValue - aValue; // Descending value
                 }
-                
+
                 // Final tie-breaker
                 return a.name.localeCompare(b.name);
             });
@@ -569,7 +565,7 @@ const ProductsPage: React.FC<{
                     {sortedAndFilteredProducts.map(p => {
                         const hasStock = p.stock > 0;
                         const stockColor = hasStock ? 'text-primary' : 'text-muted';
-                        
+
                         return (
                             <tr key={p.id} onClick={() => onProductClick(p)} className="border-b border-white/5 text-sm hover:bg-white/5 cursor-pointer transition-colors">
                                 <td className={`p-3 font-semibold ${stockColor}`}>{isPrivateMode ? p.id : p.name}</td>
@@ -580,8 +576,8 @@ const ProductsPage: React.FC<{
                                     </span>
                                 </td>
                                  <td className="p-3 text-right">
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); onUpdateStock(p); }} 
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onUpdateStock(p); }}
                                         className="p-2 rounded-full text-muted hover:bg-white/10 hover:text-primary transition-colors"
                                         aria-label={`Update stock for ${isPrivateMode ? p.id : p.name}`}
                                     >
@@ -614,8 +610,8 @@ const TransactionsPage: React.FC<{
     const transactions = useMemo(() => {
         const incomeTransactions = orders.map(order => {
             const client = clients.find(c => c.id === order.clientId);
-            const clientDisplay = isPrivateMode 
-                ? (client ? `#${client.displayId}` : 'Unknown Client') 
+            const clientDisplay = isPrivateMode
+                ? (client ? `#${client.displayId}` : 'Unknown Client')
                 : (client?.name || 'Unknown Client');
             return {
                 id: `order-${order.id}`,
@@ -635,11 +631,11 @@ const TransactionsPage: React.FC<{
             amount: -expense.amount,
             original: expense,
         }));
-        
+
         return [...incomeTransactions, ...expenseTransactions]
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [orders, expenses, clients, isPrivateMode]);
-    
+
     const filteredTransactions = useMemo(() => transactions.filter(t => {
         const lowerQuery = searchQuery.toLowerCase();
         // FIX: Safely access 'category' property on 't.original' which is a union type (Order | Expense).
@@ -651,14 +647,14 @@ const TransactionsPage: React.FC<{
         const transactionDate = new Date(t.date);
         if (dateFrom && transactionDate < new Date(dateFrom)) return false;
         if (dateTo && transactionDate > new Date(dateTo)) return false;
-        
+
     return true;
 }), [transactions, searchQuery, dateFrom, dateTo]);
 
     const totalIncome = useMemo(() => filteredTransactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0), [filteredTransactions]);
     const totalExpenses = useMemo(() => filteredTransactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0), [filteredTransactions]);
     const netTotal = totalIncome + totalExpenses;
-    
+
     return (
         <GlassCard>
             <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
@@ -826,7 +822,7 @@ const SettingsPage: React.FC<{
                     variant="danger"
                 />
             </div>
-            
+
             <div className="mt-12">
                 <h2 className="text-lg font-bold text-red-500 mb-2">Danger Zone</h2>
                 <div className="glass p-6 border-red-500/30 border">
@@ -961,7 +957,7 @@ const ReportsPage: React.FC<{
         });
         return Array.from(salesMap.values()).sort((a, b) => b.sales - a.sales).slice(0, 10);
     }, [filteredData, products, isPrivateMode]);
-    
+
     const topClientsData = useMemo(() => {
         const clientMap = new Map<string, { name: string; sales: number }>();
         filteredData.orders.forEach(order => {
@@ -1111,16 +1107,16 @@ const ReportsPage: React.FC<{
 }
 
 const App: React.FC = () => {
-  // Firebase state
+  // Supabase state
   const [user, setUser] = useState<User | null>(null);
-  const [firebaseService, setFirebaseService] = useState<FirebaseService | null>(null);
+  const [supabaseService, setSupabaseService] = useState<SupabaseService | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [page, setPage] = useState<Page>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [isPrivateMode, setIsPrivateMode] = useLocalStorage('isPrivateMode', false);
 
-  // Data state - now managed by Firebase
+  // Data state - now managed by Supabase
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1155,13 +1151,13 @@ const App: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [confirmationAction, setConfirmationAction] = useState<{ onConfirm: () => void, title: string, message: string } | null>(null);
 
-  // Initialize Firebase auth listener
+  // Initialize Supabase auth listener
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChange(async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        const service = new FirebaseService(firebaseUser.uid);
-        setFirebaseService(service);
+    const unsubscribe = AuthService.onAuthStateChange(async (supabaseUser) => {
+      if (supabaseUser) {
+        setUser(supabaseUser);
+        const service = new SupabaseService(supabaseUser.id);
+        setSupabaseService(service);
 
         // Initialize notifications
         try {
@@ -1229,7 +1225,7 @@ const App: React.FC = () => {
         }
       } else {
         setUser(null);
-        setFirebaseService(null);
+        setSupabaseService(null);
         setClients([]);
         setProducts([]);
         setOrders([]);
@@ -1243,10 +1239,10 @@ const App: React.FC = () => {
   }, []);
 
   const addLog = useCallback(async (action: string, details: Record<string, unknown>) => {
-    if (!firebaseService || !user) return;
+    if (!supabaseService || !user) return;
 
     try {
-      const newLog = await firebaseService.addLog({
+      const newLog = await supabaseService.addLog({
         timestamp: new Date().toISOString(),
         user: user.displayName || user.email || 'Unknown User',
         action,
@@ -1256,7 +1252,7 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Error adding log:', error);
     }
-  }, [firebaseService, user]);
+  }, [supabaseService, user]);
 
   const showAlert = (title: string, message: string) => {
     setAlertModalContent({ title, message });
@@ -1298,7 +1294,7 @@ const App: React.FC = () => {
 
       const smallestTier = sortedTiers[0];
       const pricePerUnit = smallestTier.price / smallestTier.quantity;
-      
+
       return total + (p.stock * pricePerUnit);
     }, 0);
   }, [products]);
@@ -1353,7 +1349,7 @@ const App: React.FC = () => {
   };
 
   const handleCreateOrder = async (orderData: Omit<Order, 'id' | 'total' | 'status'>) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
       const itemsTotal = orderData.items.reduce((sum, item) => sum + item.price, 0);
@@ -1366,7 +1362,7 @@ const App: React.FC = () => {
         status,
       };
 
-      const newOrder = await firebaseService.addOrder(orderToAdd);
+      const newOrder = await supabaseService.addOrder(orderToAdd);
 
       // Update product stock locally (this will be synced via real-time listeners)
       const timestamp = new Date().toISOString();
@@ -1385,9 +1381,9 @@ const App: React.FC = () => {
       showAlert('Error', 'Failed to create order. Please try again.');
     }
   };
-  
+
   const handleEditOrder = async (originalOrder: Order, updatedData: Omit<Order, 'id'>) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
       const stockChanges = new Map<string, number>();
@@ -1417,7 +1413,7 @@ const App: React.FC = () => {
           return p;
       }));
 
-      await firebaseService.updateOrder(originalOrder.id, updatedData);
+      await supabaseService.updateOrder(originalOrder.id, updatedData);
       // Real-time listener will update the local state automatically
       addLog('Order Updated', { orderId: originalOrder.id });
       setEditOrderModalOpen(false);
@@ -1428,7 +1424,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteOrder = async () => {
-    if (!selectedOrder || !firebaseService) return;
+    if (!selectedOrder || !supabaseService) return;
 
     try {
       // Return stock to inventory locally (this will be synced via real-time listeners)
@@ -1440,7 +1436,7 @@ const App: React.FC = () => {
           return p;
       }));
 
-      await firebaseService.deleteOrder(selectedOrder.id);
+      await supabaseService.deleteOrder(selectedOrder.id);
       // Real-time listener will update the local state automatically
       addLog('Order Deleted', { orderId: selectedOrder.id });
       setEditOrderModalOpen(false);
@@ -1452,13 +1448,13 @@ const App: React.FC = () => {
   };
 
   const handleMarkAsPaid = async (orderId: string) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
       const orderToUpdate = orders.find(o => o.id === orderId);
       if (!orderToUpdate) return;
 
-      await firebaseService.updateOrder(orderId, {
+      await supabaseService.updateOrder(orderId, {
         ...orderToUpdate,
         amountPaid: orderToUpdate.total,
         status: 'Completed'
@@ -1473,7 +1469,7 @@ const App: React.FC = () => {
   };
 
   const handleCreateClient = async (clientData: Omit<Client, 'id' | 'orders' | 'totalSpent' | 'displayId'>) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
       const nextDisplayId = Math.max(0, ...clients.map(c => c.displayId)) + 1;
@@ -1484,7 +1480,7 @@ const App: React.FC = () => {
         totalSpent: 0
       };
 
-      const newClient = await firebaseService.addClient(clientToAdd);
+      const newClient = await supabaseService.addClient(clientToAdd);
       // Real-time listener will update the local state automatically
       addLog('Client Created', { clientId: newClient.id, name: newClient.name });
       setCreateClientModalOpen(false);
@@ -1495,10 +1491,10 @@ const App: React.FC = () => {
   };
 
   const handleEditClient = async (updatedClient: Client) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
-      await firebaseService.updateClient(updatedClient.id, updatedClient);
+      await supabaseService.updateClient(updatedClient.id, updatedClient);
       // Real-time listener will update the local state automatically
       addLog('Client Updated', { clientId: updatedClient.id });
       setEditClientModalOpen(false);
@@ -1509,7 +1505,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteClient = async () => {
-    if (!selectedClient || !firebaseService) return;
+    if (!selectedClient || !supabaseService) return;
 
     try {
       const clientOrders = orders.filter(o => o.clientId === selectedClient.id);
@@ -1518,7 +1514,7 @@ const App: React.FC = () => {
         return;
       }
 
-      await firebaseService.deleteClient(selectedClient.id);
+      await supabaseService.deleteClient(selectedClient.id);
       // Real-time listener will update the local state automatically
       addLog('Client Deleted', { clientId: selectedClient.id });
       setEditClientModalOpen(false);
@@ -1530,10 +1526,10 @@ const App: React.FC = () => {
   };
 
   const handleCreateProduct = async (productData: Omit<Product, 'id'>) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
-      const newProduct = await firebaseService.addProduct(productData);
+      const newProduct = await supabaseService.addProduct(productData);
       // Real-time listener will update the local state automatically
       addLog('Product Created', { productId: newProduct.id, name: newProduct.name });
       setCreateProductModalOpen(false);
@@ -1544,10 +1540,10 @@ const App: React.FC = () => {
   };
 
   const handleEditProduct = async (updatedProduct: Product) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
-      await firebaseService.updateProduct(updatedProduct.id, updatedProduct);
+      await supabaseService.updateProduct(updatedProduct.id, updatedProduct);
       // Real-time listener will update the local state automatically
       addLog('Product Updated', { productId: updatedProduct.id });
       setEditProductModalOpen(false);
@@ -1556,12 +1552,12 @@ const App: React.FC = () => {
       showAlert('Error', 'Failed to update product. Please try again.');
     }
   };
-  
+
   const handleDeleteProduct = async () => {
-    if (!selectedProduct || !firebaseService) return;
+    if (!selectedProduct || !supabaseService) return;
 
     try {
-      await firebaseService.deleteProduct(selectedProduct.id);
+      await supabaseService.deleteProduct(selectedProduct.id);
       // Real-time listener will update the local state automatically
       addLog('Product Deleted', { productId: selectedProduct.id });
       setEditProductModalOpen(false);
@@ -1571,9 +1567,9 @@ const App: React.FC = () => {
       showAlert('Error', 'Failed to delete product. Please try again.');
     }
   };
-  
+
   const handleUpdateStock = async (productId: string, amount: number, purchaseCost: number) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
       const productBeforeUpdate = products.find(p => p.id === productId);
@@ -1596,7 +1592,7 @@ const App: React.FC = () => {
           costPerUnit: newCostPerUnit
       };
 
-      await firebaseService.updateProduct(productId, updatedProduct);
+      await supabaseService.updateProduct(productId, updatedProduct);
       // Real-time listener will update the local state automatically
 
       if (purchaseCost > 0 && amount > 0) {
@@ -1624,10 +1620,10 @@ const App: React.FC = () => {
   };
 
   const handleCreateExpense = async (expenseData: Omit<Expense, 'id'>) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
-      const newExpense = await firebaseService.addExpense(expenseData);
+      const newExpense = await supabaseService.addExpense(expenseData);
       // Real-time listener will update the local state automatically
       addLog('Expense Created', { description: newExpense.description, amount: newExpense.amount });
       setCreateExpenseModalOpen(false);
@@ -1638,10 +1634,10 @@ const App: React.FC = () => {
   };
 
   const handleEditExpense = async (updatedExpense: Expense) => {
-    if (!firebaseService) return;
+    if (!supabaseService) return;
 
     try {
-      await firebaseService.updateExpense(updatedExpense.id, updatedExpense);
+      await supabaseService.updateExpense(updatedExpense.id, updatedExpense);
       // Real-time listener will update the local state automatically
       addLog('Expense Updated', { expenseId: updatedExpense.id });
       setEditExpenseModalOpen(false);
@@ -1650,12 +1646,12 @@ const App: React.FC = () => {
       showAlert('Error', 'Failed to update expense. Please try again.');
     }
   };
-  
+
   const handleDeleteExpense = async () => {
-    if (!selectedExpense || !firebaseService) return;
+    if (!selectedExpense || !supabaseService) return;
 
     try {
-      await firebaseService.deleteExpense(selectedExpense.id);
+      await supabaseService.deleteExpense(selectedExpense.id);
       // Real-time listener will update the local state automatically
       addLog('Expense Deleted', { expenseId: selectedExpense.id });
       setEditExpenseModalOpen(false);
@@ -1665,21 +1661,21 @@ const App: React.FC = () => {
       showAlert('Error', 'Failed to delete expense. Please try again.');
     }
   };
-  
+
   const handleDeleteAllData = async () => {
-    if (!firebaseService || !user) return;
+    if (!supabaseService || !user) return;
 
     try {
-      // Note: In a real implementation, you'd want to delete all documents from Firestore
+      // Note: In a real implementation, you'd want to delete all documents from Supabase
       // For now, we'll just clear the local state and add a log
-      const deletionLog = await firebaseService.addLog({
+      const deletionLog = await supabaseService.addLog({
         timestamp: new Date().toISOString(),
         user: user.displayName || user.email || 'Unknown User',
         action: 'All Data Deleted',
         details: { message: 'All user-generated data has been wiped.' }
       });
 
-      // Clear local state (real-time listeners will update from Firestore)
+      // Clear local state (real-time listeners will update from Supabase)
       setClients([]);
       setProducts([]);
       setOrders([]);
@@ -1721,10 +1717,10 @@ const App: React.FC = () => {
       }
     }
   };
-  
+
   const handleImportData = async (file: File) => {
-    if (!firebaseService) {
-      showAlert("Import Error", "Firebase service not available. Please try again.");
+    if (!supabaseService) {
+      showAlert("Import Error", "Supabase service not available. Please try again.");
       return;
     }
 
@@ -1748,8 +1744,8 @@ const App: React.FC = () => {
                 data.expenses && Array.isArray(data.expenses) &&
                 data.logs && Array.isArray(data.logs)) {
 
-              // First, migrate the data to Firebase
-              await firebaseService.migrateLocalData({
+              // First, migrate the data to Supabase
+              await supabaseService.migrateLocalData({
                 clients: data.clients,
                 products: data.products,
                 orders: data.orders,
@@ -1758,7 +1754,7 @@ const App: React.FC = () => {
               });
 
               // The real-time listeners will automatically update the local state
-              // No need to manually set state as Firebase will sync it
+              // No need to manually set state as Supabase will sync it
 
               addLog('Data Imported', { fileName: file.name, source: 'user_upload' });
               showAlert("Import Successful", `Successfully imported data from ${file.name}. The data has been saved to your account.`);
@@ -1800,7 +1796,7 @@ const App: React.FC = () => {
     setConfirmationAction(actions[type]);
     setConfirmationModalOpen(true);
   };
-  
+
   const openDeleteAllDataConfirmation = () => {
     setConfirmationAction({
         onConfirm: handleDeleteAllData,
@@ -1809,7 +1805,7 @@ const App: React.FC = () => {
     });
     setConfirmationModalOpen(true);
   };
-  
+
   // Render logic
   const renderPage = () => {
     switch (page) {
@@ -1880,7 +1876,7 @@ const App: React.FC = () => {
     }
   };
 
-  // Show loading screen while Firebase initializes
+  // Show loading screen while Supabase initializes
   if (isLoading) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center text-primary">
@@ -1906,16 +1902,16 @@ const App: React.FC = () => {
         <div className="blob blob--b"></div>
         <div className="blob blob--c"></div>
       </div>
-      
+
       <div className="grid grid-cols-12 gap-6 relative z-10">
         <main className="col-span-12 space-y-6 pb-28">
           <header className={`flex items-center gap-4 ${page === 'settings' ? 'justify-end' : ''}`}>
             {page !== 'settings' && (
               <div className="relative glass flex-grow">
                   <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                  <input 
-                      type="text" 
-                      placeholder="Search" 
+                  <input
+                      type="text"
+                      placeholder="Search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full bg-transparent border-none rounded-lg pl-11 pr-4 py-3 text-base text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
@@ -1928,7 +1924,7 @@ const App: React.FC = () => {
               <button onClick={() => setPage('settings')} className="glass h-14 w-14 flex items-center justify-center rounded-lg text-muted hover:text-primary transition-colors hover:bg-white/10 settings-btn" aria-label="Settings"><Settings size={28} /></button>
             </div>
           </header>
-          
+
           <AnimatePresence mode="wait">
             <motion.div
               key={page}
@@ -1955,7 +1951,7 @@ const App: React.FC = () => {
             </button>
          </div>
       </footer>
-      
+
       <CreateOrderModal isOpen={isCreateOrderModalOpen} onClose={() => setCreateOrderModalOpen(false)} clients={clients} products={products} onCreate={handleCreateOrder} onAlert={showAlert} />
       <EditOrderModal isOpen={isEditOrderModalOpen} onClose={() => setEditOrderModalOpen(false)} order={selectedOrder} clients={clients} products={products} onSave={handleEditOrder} onDelete={() => openDeleteConfirmation('order')} onAlert={showAlert} />
       <CreateClientModal isOpen={isCreateClientModalOpen} onClose={() => setCreateClientModalOpen(false)} onAdd={handleCreateClient} />
