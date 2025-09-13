@@ -50,6 +50,13 @@ jobs:
         with:
           path: './dist'
 
+      - name: Verify build output
+        run: |
+          echo "Build output contents:"
+          ls -la dist/
+          echo "Index.html contents:"
+          head -20 dist/index.html
+
   deploy:
     environment:
       name: github-pages
