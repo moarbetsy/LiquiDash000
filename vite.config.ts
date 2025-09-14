@@ -30,7 +30,16 @@ export default defineConfig(({ mode }) => {
       },
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        // Database environment variables
+        'process.env.DATABASE_URL': JSON.stringify(env.DATABASE_URL),
+        'process.env.DB_USER': JSON.stringify(env.DB_USER),
+        'process.env.DB_PASSWORD': JSON.stringify(env.DB_PASSWORD),
+        'process.env.DB_HOST': JSON.stringify(env.DB_HOST),
+        'process.env.DB_PORT': JSON.stringify(env.DB_PORT),
+        'process.env.DB_NAME': JSON.stringify(env.DB_NAME),
+        'process.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY)
       },
       resolve: {
         alias: {
