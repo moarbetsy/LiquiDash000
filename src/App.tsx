@@ -55,7 +55,7 @@ const DashboardPage: React.FC<{
   isPrivateMode: boolean;
   currentUser: string;
   dashboardStats: DashboardStat[];
-}> = ({ onNewOrder, searchQuery, setSearchQuery, onViewClientOrders, onEditOrder, onEditProduct, clients, orders, products, isPrivateMode, currentUser, dashboardStats }) => {
+}> = ({ onNewOrder: _onNewOrder, searchQuery, setSearchQuery: _setSearchQuery, onViewClientOrders, onEditOrder, onEditProduct, clients, orders, products, isPrivateMode, currentUser, dashboardStats }) => {
 
     const [currentStatIndex, setCurrentStatIndex] = useState(0);
 
@@ -496,7 +496,7 @@ const ProductsPage: React.FC<{
     onAddProduct: () => void;
     onUpdateStock: (product: Product) => void;
     isPrivateMode: boolean;
-}> = ({ products, searchQuery, onProductClick, inventoryValue, onAddProduct, onUpdateStock, isPrivateMode }) => {
+}> = ({ products, searchQuery, onProductClick, inventoryValue: _inventoryValue, onAddProduct, onUpdateStock, isPrivateMode }) => {
     const sortedAndFilteredProducts = useMemo(() => {
         return products
             .filter(product =>
@@ -759,7 +759,9 @@ const SettingsPage: React.FC<{
     onLogout: () => void;
     onDeleteAllData: () => void;
     isImportingData?: boolean;
-}> = ({ setPage, onExport, onImport, onLogout, onDeleteAllData, isImportingData = false }) => {
+    onEnableNotifications?: () => void;
+    onAlert: (title: string, message: string) => void;
+}> = ({ setPage, onExport, onImport, onLogout, onDeleteAllData, isImportingData = false, onEnableNotifications, onAlert }) => {
     const importInputRef = useRef<HTMLInputElement>(null);
 
     const handleImportClick = () => {
@@ -773,6 +775,23 @@ const SettingsPage: React.FC<{
             event.target.value = ''; // Reset input to allow re-uploading the same file
         }
     };
+
+  const handleEnableNotifications = async () => {
+    try {
+      const granted = await notificationService.requestPermission();
+      if (granted) {
+        onAlert('Success', 'Notifications enabled! You will now receive updates about your dashboard.');
+      } else {
+        onAlert('Permission Denied', 'Notification permission was denied. You can enable it later in your browser settings.');
+      }
+    } catch (error) {
+      console.error('Error enabling notifications:', error);
+      onAlert('Error', 'Failed to enable notifications. Please try again.');
+    }
+  };
+
+    const notificationStatus = notificationService.getPermissionStatus();
+    const isNotificationSupported = notificationService.isSupported();
 
     return (
         <div className="space-y-8">
@@ -814,6 +833,21 @@ const SettingsPage: React.FC<{
                     disabled={isImportingData}
                 />
                 <input type="file" ref={importInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                {isNotificationSupported && (
+                    <ActionCard
+                        icon={<AlertTriangle size={24} />}
+                        title={notificationStatus === 'granted' ? 'Notifications Enabled' : 'Enable Notifications'}
+                        description={
+                            notificationStatus === 'granted'
+                                ? 'Browser notifications are enabled for this site.'
+                                : notificationStatus === 'denied'
+                                ? 'Notifications are blocked. Check your browser settings.'
+                                : 'Get notified about important updates and changes.'
+                        }
+                        onClick={notificationStatus === 'granted' ? undefined : handleEnableNotifications}
+                        variant={notificationStatus === 'denied' ? 'danger' : undefined}
+                    />
+                )}
                 <ActionCard
                     icon={<LogOut size={24} />}
                     title="Log Out"
@@ -1138,7 +1172,7 @@ const App: React.FC = () => {
   const [isCalculatorModalOpen, setCalculatorModalOpen] = useState(false);
   const [isImportingData, setIsImportingData] = useState(false);
 
-  const [isSessionTimeoutModalOpen, setSessionTimeoutModalOpen] = useState(false);
+  const [_isSessionTimeoutModalOpen, _setSessionTimeoutModalOpen] = useState(false);
   const [isConfirmationModalOpen, setConfirmationModalOpen] = useState(false);
   const [isAlertModalOpen, setAlertModalOpen] = useState(false);
   const [alertModalContent, setAlertModalContent] = useState<{ title: string; message: string }>({ title: '', message: '' });
@@ -1159,34 +1193,9 @@ const App: React.FC = () => {
         const service = new SupabaseService(supabaseUser.id);
         setSupabaseService(service);
 
-        // Initialize notifications
-        try {
-          await notificationService.registerServiceWorker();
-
-          const permissionGranted = await notificationService.requestPermission();
-          if (permissionGranted) {
-            const token = await notificationService.getFCMToken();
-            if (token) {
-              console.log('FCM Token obtained:', token);
-              // TODO: Send token to backend for storing
-            }
-          }
-
-          // Listen for foreground messages
-          notificationService.onMessageReceived((payload) => {
-            console.log('Foreground message received:', payload);
-            // Show in-app notification for foreground messages
-            notificationService.showNotification(
-              payload.notification?.title || 'Liquid Glass Dashboard',
-              {
-                body: payload.notification?.body || 'You have a new notification',
-                data: payload.data
-              }
-            );
-          });
-        } catch (error) {
-          console.error('Error initializing notifications:', error);
-        }
+        // Initialize notifications (service worker registration happens in constructor)
+        // Permission request moved to user-triggered event to comply with browser policies
+        console.log('Notification service initialized');
 
         // Load initial data
         try {
@@ -1242,7 +1251,7 @@ const App: React.FC = () => {
     if (!supabaseService || !user) return;
 
     try {
-      const newLog = await supabaseService.addLog({
+      const _newLog = await supabaseService.addLog({
         timestamp: new Date().toISOString(),
         user: user.displayName || user.email || 'Unknown User',
         action,
@@ -1335,7 +1344,7 @@ const App: React.FC = () => {
         { label: 'Sales This Week', value: `$${Math.round(salesThisWeek).toLocaleString()}`, subtext: 'Since Sunday' },
         { label: 'Sales This Month', value: `$${Math.round(salesThisMonth).toLocaleString()}`, subtext: `In ${new Date().toLocaleString('default', { month: 'long' })}` },
     ];
-  }, [products, orders, inventoryValue, inventoryCost]);
+  }, [orders, inventoryValue, inventoryCost]);
 
   // Event handlers
   const handleLogout = async () => {
@@ -1668,7 +1677,7 @@ const App: React.FC = () => {
     try {
       // Note: In a real implementation, you'd want to delete all documents from Supabase
       // For now, we'll just clear the local state and add a log
-      const deletionLog = await supabaseService.addLog({
+      const _deletionLog = await supabaseService.addLog({
         timestamp: new Date().toISOString(),
         user: user.displayName || user.email || 'Unknown User',
         action: 'All Data Deleted',
@@ -1868,7 +1877,7 @@ const App: React.FC = () => {
       case 'log':
         return <LogPage logs={logs} onLogClick={openLogDetailsModal} />;
       case 'settings':
-         return <SettingsPage setPage={setPage} onExport={handleExport as unknown} onImport={handleImportData} onLogout={() => openDeleteConfirmation('logout')} onDeleteAllData={openDeleteAllDataConfirmation} isImportingData={isImportingData} />;
+         return <SettingsPage setPage={setPage} onExport={handleExport as unknown} onImport={handleImportData} onLogout={() => openDeleteConfirmation('logout')} onDeleteAllData={openDeleteAllDataConfirmation} isImportingData={isImportingData} onEnableNotifications={handleEnableNotifications} onAlert={showAlert} />;
       case 'reports':
           return <ReportsPage orders={orders} products={products} expenses={expenses} clients={clients} isPrivateMode={isPrivateMode} />;
       default:
@@ -1893,7 +1902,7 @@ const App: React.FC = () => {
     return <LoginPage onLoginSuccess={() => {}} />;
   }
 
-  const unpaidOrdersCount = orders.filter(o => o.status === 'Unpaid' && (o.total - (o.amountPaid || 0)) > 0).length;
+
 
   return (
     <div className="min-h-screen w-full text-primary p-4 md:p-6 lg:p-8">

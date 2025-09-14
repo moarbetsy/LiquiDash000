@@ -29,5 +29,9 @@
   },
   "include": [
     "src"
+  ],
+  "types": [
+    "vite/client",
+    "node"
   ]
 }

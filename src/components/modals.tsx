@@ -1442,7 +1442,7 @@ export const CalculatorModal: React.FC<{
             percentPart = lastNumber / 100;
         }
         setInput(parts.join('') + String(percentPart));
-    } catch (error) {
+    } catch {
         setInput('Error');
     }
   };
@@ -1455,9 +1455,9 @@ export const CalculatorModal: React.FC<{
         if (input === '' || input === 'Error') return;
         const result = Function('"use strict";return (' + input + ')')();
         setInput(String(result));
-      } catch (error) {
-        setInput('Error');
-      }
+    } catch {
+      setInput('Error');
+    }
     } else if (value === '←') {
       setInput(prev => prev.slice(0, -1));
     } else if (value === '%') {

@@ -1,12 +1,19 @@
 export class NotificationService {
+  private registration: ServiceWorkerRegistration | null = null;
+
   constructor() {
-    // Supabase doesn't have built-in push notifications like Firebase
-    // This is a stub implementation for future notification features
+    // Initialize service worker registration
+    this.registerServiceWorker();
   }
 
-  // Request permission for notifications
+  // Request permission for notifications - should be called from user gesture
   async requestPermission(): Promise<boolean> {
     try {
+      if (!('Notification' in window)) {
+        console.warn('This browser does not support notifications');
+        return false;
+      }
+
       const permission = await Notification.requestPermission();
       return permission === 'granted';
     } catch (error) {
@@ -15,48 +22,102 @@ export class NotificationService {
     }
   }
 
-  // Get FCM token - not available in Supabase
+  // Check if notifications are supported and permitted
+  isSupported(): boolean {
+    return 'Notification' in window && 'serviceWorker' in navigator;
+  }
+
+  // Get current permission status
+  getPermissionStatus(): NotificationPermission {
+    if (!('Notification' in window)) return 'denied';
+    return Notification.permission;
+  }
+
+  // Get FCM token - not available in Supabase (push notifications require third-party service)
   async getFCMToken(): Promise<string | null> {
-    console.log('FCM tokens not available with Supabase. Consider using a third-party service.');
+    console.log('FCM tokens not available with Supabase. Push notifications require a third-party service like Firebase Cloud Messaging.');
     return null;
   }
 
-  // Listen for foreground messages - not available in Supabase
-  onMessageReceived(callback: (payload: any) => void) {
-    console.log('Real-time messaging not implemented with Supabase. Consider using Supabase Realtime.');
+  // Listen for foreground messages - use Supabase real-time instead
+  onMessageReceived(_callback: (payload: { notification?: { title?: string; body?: string }; data?: unknown }) => void) {
+    console.log('For real-time messaging, use Supabase Realtime channels in SupabaseService. This notification service handles browser notifications only.');
     return () => {}; // Return empty unsubscribe function
   }
 
-  // Show notification
+  // Show notification using service worker or fallback
   showNotification(title: string, options?: NotificationOptions) {
-    if ('serviceWorker' in navigator && 'Notification' in window) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          icon: '/icon-192x192.png', // You'll need to add this icon
-          badge: '/icon-192x192.png',
-          ...options
-        });
-      });
-    } else {
+    if (!this.isSupported()) {
+      console.warn('Notifications not supported in this browser');
+      return;
+    }
+
+    const notificationOptions: NotificationOptions = {
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
+      tag: 'liquid-glass-notification',
+      ...options
+    };
+
+    if (this.registration) {
+      // Use service worker for better reliability
+      this.registration.showNotification(title, notificationOptions);
+    } else if (this.getPermissionStatus() === 'granted') {
       // Fallback for browsers without service worker
-      new Notification(title, options);
+      new Notification(title, notificationOptions);
+    } else {
+      console.warn('Notification permission not granted');
     }
   }
 
-  // Initialize service worker
-  async registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      try {
-        // Note: This would need to be updated to use a different service worker
-        // since we removed the Firebase messaging service worker
-        console.log('Service worker registration not implemented for Supabase');
-        return null;
-      } catch (error) {
-        console.error('Service Worker registration failed:', error);
-        return null;
-      }
+  // Register service worker for Supabase
+  async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+    if (!('serviceWorker' in navigator)) {
+      console.warn('Service workers not supported in this browser');
+      return null;
     }
-    return null;
+
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      });
+
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New service worker available, could show update prompt here
+              console.log('New service worker available');
+            }
+          });
+        }
+      });
+
+      this.registration = registration;
+      console.log('Service Worker registered successfully:', registration.scope);
+      return registration;
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+      return null;
+    }
+  }
+
+  // Unregister service worker (for cleanup/testing)
+  async unregisterServiceWorker(): Promise<boolean> {
+    if (!this.registration) return false;
+
+    try {
+      const result = await this.registration.unregister();
+      if (result) {
+        this.registration = null;
+        console.log('Service Worker unregistered');
+      }
+      return result;
+    } catch (error) {
+      console.error('Service Worker unregistration failed:', error);
+      return false;
+    }
   }
 }
 
